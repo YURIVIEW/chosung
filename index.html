@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>똑똑 초성 자판기</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
+
+  :root {
+    --bg: #FFF9F0;
+    --machine-body: #E53935;
+    --machine-trim: #C62828;
+    --coin-gold: #F5C842;
+    --coin-dark: #C89A10;
+    --text-main: #1A1830;
+    --text-sub: #6B6880;
+    --cat-animal:  #4CAF82;
+    --cat-food:    #FF8C42;
+    --cat-fairy:   #9B6FD4;
+    --cat-color:   #F06292;
+    --cat-vehicle: #4A90D9;
+    --cat-place:   #F5C842;
+    --radius-xl: 28px;
+    --radius-lg: 18px;
+    --radius-md: 12px;
+    --shadow-btn: 0 4px 14px rgba(180,40,40,0.18);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 0 0 40px; overflow-x: hidden;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    width: 100%; max-width: 420px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 20px 0; position: relative; z-index: 1;
+  }
+  .logo { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; }
+  .logo-prefix { color: #5C4A8A; }
+  .logo-suffix { color: var(--machine-body); }
+
+  /* 컬렉션 버튼 — 우측 상단 단독 */
+  .badge-btn {
+    background: #FCE4EC;
+    border: none; cursor: pointer;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    padding: 0; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(240,98,146,0.2), inset 0 1px 0 rgba(255,255,255,0.8);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .badge-btn:hover { transform: scale(1.08); box-shadow: 0 4px 12px rgba(240,98,146,0.3); }
+  .badge-btn-can {
+    width: 12px; height: 24px; position: relative;
+    transform: rotate(15deg) translateX(-3px);
+    transform-origin: center bottom;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.15));
+  }
+  .badge-btn:hover .badge-btn-can { transform: rotate(10deg) translateX(-2px) scale(1.05); }
+  .badge-btn-can svg { width: 100%; height: 100%; }
+  .badge-new-dot {
+    position: absolute; top: 2px; right: 2px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: #F06292; border: 1.5px solid #FCE4EC; display: none;
+    z-index: 1;
+  }
+  .badge-new-dot.show { display: block; }
+  /* 첫 로드 시 흔들림 힌트 */
+  @keyframes canWiggle {
+    0%,100% { transform: rotate(15deg) translateX(-4px); }
+    25% { transform: rotate(25deg) translateX(-4px) scale(1.05); }
+    75% { transform: rotate(5deg) translateX(-4px) scale(1.05); }
+  }
+  .badge-btn-can.wiggle { animation: canWiggle 0.6s ease-in-out; }
+
+  /* ── 배경 떠다니는 이모지 ── */
+  .bg-emoji-layer {
+    position: fixed; inset: 0;
+    pointer-events: none; overflow: hidden;
+    z-index: 0;
+  }
+  .bg-emoji {
+    position: absolute;
+    font-size: 22px;
+    opacity: 0;
+    animation: floatEmoji linear infinite;
+    user-select: none;
+  }
+  @keyframes floatEmoji {
+    0%   { opacity: 0; transform: translate(0, 0) rotate(0deg) scale(0.8); }
+    10%  { opacity: 0.5; }
+    90%  { opacity: 0.5; }
+    100% { opacity: 0; transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1.0); }
+  }
+
+  /* ── VENDING MACHINE ── */
+  .machine-wrap { width: 100%; max-width: 420px; padding: 16px 20px 0; position: relative; z-index: 1; }
+  .machine {
+    background: var(--machine-body);
+    border-radius: var(--radius-xl) var(--radius-xl) 20px 20px;
+    padding: 18px 18px 0;
+    box-shadow: 0 16px 48px rgba(200,40,40,0.25), inset 0 1px 0 rgba(255,255,255,0.12);
+  }
+  .machine-label { text-align: center; color: rgba(255,255,255,0.55); font-size: 10px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 10px; }
+  .machine-window {
+    background: linear-gradient(160deg, rgba(240,225,225,0.32) 0%, rgba(235,215,215,0.22) 100%);
+    border: 2px solid rgba(255,255,255,0.35);
+    border-radius: var(--radius-lg); min-height: 160px; position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .machine-window::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 50%; bottom: 0;
+    background: linear-gradient(100deg, rgba(255,255,255,0.10) 0%, transparent 100%); pointer-events: none;
+  }
+  .can-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; padding: 24px; width: 100%; }
+  .can-in-machine {
+    aspect-ratio: 1/2.0; border-radius: 6px; opacity: 0.85; position: relative; overflow: hidden;
+    box-shadow:
+      inset 0 -4px 0 rgba(0,0,0,0.28),
+      inset 0 3px 0 rgba(255,255,255,0.32),
+      0 6px 12px rgba(0,0,0,0.28);
+    transition: transform 0.15s;
+  }
+  .can-in-machine::before {
+    content: ''; position: absolute; top: 8%; left: 12%; width: 10%; bottom: 8%;
+    background: rgba(255,255,255,0.28); border-radius: 4px; pointer-events: none;
+  }
+  .can-in-machine::after { content: ''; position: absolute; top: 0; left: 30%; right: 0; bottom: 0; background: rgba(255,255,255,0.10); border-radius: 0 4px 4px 0; }
+  .can-top {
+    position: absolute; top: 0; left: 0; right: 0; height: 16%;
+    background: rgba(255,255,255,0.22);
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+    z-index: 1;
+  }
+  .can-in-machine.shake { animation: canShake 0.5s ease-in-out; }
+  @keyframes canShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-4px) rotate(-3deg)} 40%{transform:translateX(4px) rotate(3deg)} 60%{transform:translateX(-3px) rotate(-2deg)} 80%{transform:translateX(3px) rotate(2deg)} }
+
+  .machine-bottom {
+    background: var(--machine-trim); margin: 0 -18px;
+    padding: 12px 18px 14px;
+    border-top: 2px solid rgba(255,255,255,0.1);
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .outlet-wrapper {
+    position: relative;
+    overflow: visible;
+  }
+  .outlet-slot {
+    background: #7a0000; border-radius: 10px; height: 58px; width: 100%;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid rgba(255,255,255,0.08);
+    position: relative; overflow: visible;
+    cursor: default; transition: background 0.2s;
+  }
+  .outlet-slot.has-can { cursor: pointer; }
+  .outlet-slot.has-can:hover { background: #8a0000; }
+  .outlet-label { color: rgba(255,255,255,0.5); font-size: 13px; letter-spacing: 3px; font-weight: 900; }
+  .outlet-can {
+    width: 28px; height: 38px; border-radius: 6px;
+    position: absolute; top: -50px; left: 50%;
+    transform: translateX(-50%);
+    cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: box-shadow 0.2s;
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+    z-index: 10;
+  }
+  .outlet-can.drop { animation: dropCan 0.55s cubic-bezier(0.22,1,0.36,1) forwards, bounceCan 0.35s 0.5s ease-out forwards; }
+  @keyframes dropCan { 0%{top:-50px} 100%{top:50%;transform:translateX(-50%) translateY(-50%)} }
+  @keyframes bounceCan { 0%{transform:translateX(-50%) translateY(-50%) scaleY(1)} 40%{transform:translateX(-50%) translateY(-40%) scaleY(0.88)} 70%{transform:translateX(-50%) translateY(-54%) scaleY(1.05)} 100%{transform:translateX(-50%) translateY(-50%) scaleY(1)} }
+
+  /* 동그라미 동전 넣기 버튼 */
+  .coin-circle-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0;
+  }
+  .coin-btn-inner {
+    width: 58px; height: 58px; border-radius: 50%; border: none; cursor: pointer;
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='58' height='58'%3E%3Crect x='26' y='10' width='6' height='38' rx='3' fill='rgba(0,0,0,0.18)'/%3E%3Crect x='27' y='11' width='2' height='36' rx='1' fill='rgba(0,0,0,0.2)'/%3E%3Crect x='27' y='11' width='2' height='5' rx='1' fill='rgba(255,255,255,0.1)'/%3E%3C/svg%3E") center/58px 58px no-repeat,
+      radial-gradient(circle at 38% 32%, #E8E8E8, #C0C0C0 50%, #909090);
+    color: #444; font-size: 26px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.25), inset 0 3px 0 rgba(255,255,255,0.6), 0 6px 14px rgba(0,0,0,0.3);
+    transition: transform 0.12s, box-shadow 0.12s;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+  }
+  .coin-btn-inner:hover:not(:disabled) { transform: translateY(-2px); box-shadow: inset 0 -4px 0 rgba(0,0,0,0.25), inset 0 3px 0 rgba(255,255,255,0.6), 0 8px 18px rgba(0,0,0,0.35); }
+  .coin-btn-inner:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 -1px 0 rgba(0,0,0,0.2), inset 0 3px 0 rgba(255,255,255,0.4), 0 2px 6px rgba(0,0,0,0.2); }
+  .coin-btn-inner:disabled { opacity: 0.4; cursor: not-allowed; }
+  .coin-btn-label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.7); letter-spacing: 0.5px; }
+  .hint-text-inner { text-align: center; font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 4px; min-height: 18px; transition: color 0.2s; }
+  @keyframes hintShake {
+    0%,100%{ transform: translateX(0); }
+    20%{ transform: translateX(-6px); }
+    40%{ transform: translateX(6px); }
+    60%{ transform: translateX(-4px); }
+    80%{ transform: translateX(4px); }
+  }
+  .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.25); }
+  .brand-dots { display: flex; gap: 4px; }
+
+  /* ── CATEGORY (동그라미 버튼) ── */
+  .cat-panel {
+    background: var(--machine-trim);
+    margin: 6px -18px 0;
+    padding: 14px 18px 10px;
+    border-top: 2px solid rgba(255,255,255,0.1);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .cat-circle-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 10px; width: 100%;
+  }
+  .cat-circle-btn {
+    border: none; background: none; cursor: pointer; padding: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    transition: transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .cat-circle-btn:hover { transform: translateY(-2px); }
+  .cat-circle {
+    width: 52px; height: 52px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    background: rgba(255,255,255,0.15);
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,255,255,0.25), 0 4px 8px rgba(0,0,0,0.2);
+    transition: box-shadow 0.15s, background 0.15s;
+    position: relative; overflow: hidden;
+  }
+  .cat-circle::after {
+    content: ''; position: absolute; top: 4px; left: 8px; right: 8px; height: 35%;
+    background: rgba(255,255,255,0.2); border-radius: 50%;
+  }
+  .cat-circle-btn.selected .cat-circle {
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3), inset 0 2px 0 rgba(255,255,255,0.3), 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .cat-circle-label {
+    font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.75);
+    letter-spacing: -0.3px;
+  }
+  .cat-circle-btn.selected .cat-circle-label { color: #fff; }
+
+  /* 아무거나 버튼 — 가로 전체, 높은 border-radius */
+
+  .cat-random-btn {
+    border: none; cursor: pointer; width: 100%;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: linear-gradient(90deg, #4CAF82, #4A90D9, #9B6FD4, #F06292, #FF8C42, #F5C842);
+    border-radius: 30px;
+    padding: 10px 20px;
+    font-family: inherit; font-size: 14px; font-weight: 700;
+    color: #fff;
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15), inset 0 2px 0 rgba(255,255,255,0.2), 0 4px 8px rgba(0,0,0,0.2);
+    transition: transform 0.15s, filter 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    box-sizing: border-box;
+  }
+  .cat-random-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+  .cat-random-btn.selected {
+    filter: brightness(1.12);
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,255,255,0.25), 0 4px 12px rgba(0,0,0,0.25);
+  }
+  .cat-random-btn .random-icon { font-size: 18px; }
+  .cat-random-btn .random-sub { font-size: 11px; opacity: 0.65; font-weight: 400; margin-left: 2px; }
+
+  .machine-footer {
+    background: var(--machine-trim); margin: 0 -18px;
+    padding: 10px 18px 14px; border-radius: 0 0 18px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+
+  /* ── COLLECTED CANS 아코디언 ── */
+  .collection-wrap { max-width: 420px; width: 100%; padding: 12px 20px 0; position: relative; z-index: 1; }
+  .collection-box {
+    background: #fff; border-radius: var(--radius-lg);
+    box-shadow: 0 2px 12px rgba(44,40,80,0.07); overflow: hidden;
+  }
+  .collection-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; cursor: pointer;
+    user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .collection-header-left {
+    display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;
+  }
+  .collection-title {
+    font-size: 13px; font-weight: 700; color: var(--text-main);
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .collection-preview {
+    display: flex; align-items: center; gap: 3px;
+    overflow: hidden; flex: 1;
+  }
+  .preview-can {
+    font-size: 14px; flex-shrink: 0;
+  }
+  .preview-more {
+    font-size: 11px; font-weight: 700; color: var(--text-sub);
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .collection-arrow {
+    font-size: 12px; color: var(--text-sub);
+    transition: transform 0.3s; flex-shrink: 0; margin-left: 8px;
+  }
+  .collection-arrow.open { transform: rotate(180deg); }
+  .collection-body {
+    max-height: 0; overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.22,1,0.36,1);
+  }
+  .collection-body.open { max-height: 300px; }
+  .collection-items {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 0 16px 14px;
+  }
+  .collected-can { display: flex; align-items: center; gap: 5px; border-radius: 20px; padding: 5px 10px; font-size: 12px; font-weight: 700; color: #fff; animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+  .empty-collection { color: var(--text-sub); font-size: 13px; text-align: center; padding: 4px 0 10px; }
+
+  .credit-wrap {
+    max-width: 420px; width: 100%;
+    padding: 16px 20px 28px;
+    text-align: center;
+    font-size: 12px; font-weight: 700;
+    color: var(--text-sub);
+    position: relative; z-index: 1;
+    letter-spacing: -0.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── OVERLAY / MODAL (중앙 정렬) ── */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(26,24,48,0.65);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    padding: 24px 16px;
+  }
+  .overlay.show { opacity: 1; pointer-events: all; }
+  .modal-card {
+    background: #fff; border-radius: var(--radius-xl);
+    width: 100%; max-width: 400px; padding: 28px 24px 32px;
+    transform: scale(0.92) translateY(16px);
+    transition: transform 0.32s cubic-bezier(0.22,1,0.36,1);
+    position: relative; max-height: min(90vh, 90dvh); overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.22);
+    -webkit-overflow-scrolling: touch;
+  }
+  .overlay.show .modal-card { transform: scale(1) translateY(0); }
+  .modal-handle { width: 40px; height: 4px; background: #E0DDF0; border-radius: 2px; margin: 0 auto 22px; }
+
+  /* quiz */
+  .quiz-cat-label { display: inline-flex; align-items: center; gap: 6px; border-radius: 20px; padding: 5px 12px; font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 18px; }
+  .chosung-display { font-size: 56px; font-weight: 900; color: var(--text-main); letter-spacing: 12px; text-align: center; margin-bottom: 10px; line-height: 1.1; }
+  .hint-display { text-align: center; font-size: 15px; color: var(--text-sub); margin-bottom: 24px; line-height: 1.5; }
+  .choices-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .choice-btn { border: 2.5px solid #EEEDF8; background: #fff; border-radius: var(--radius-md); padding: 16px 12px; font-family: inherit; font-size: 16px; font-weight: 700; color: var(--text-main); cursor: pointer; transition: all 0.15s; min-height: 60px; }
+  .choice-btn:hover:not(:disabled) { border-color: #ffb3b3; background: #fff5f5; transform: translateY(-1px); }
+  .choice-btn.correct { background: #E8F8EE; border-color: #4CAF82; color: #2A7A50; }
+  .choice-btn.wrong   { background: #FFF0F0; border-color: #F06292; color: #B02050; }
+  .choice-btn:disabled { cursor: not-allowed; }
+
+  /* result */
+  .result-icon { font-size: 64px; text-align: center; margin-bottom: 8px; line-height: 1; }
+  .result-title { font-size: 26px; font-weight: 900; text-align: center; color: var(--text-main); margin-bottom: 6px; }
+  .result-sub { font-size: 15px; text-align: center; color: var(--text-sub); margin-bottom: 6px; line-height: 1.5; }
+  .result-can-label {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 900;
+    padding: 8px 20px; border-radius: 30px;
+    margin: 0 auto 20px; width: auto;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+    letter-spacing: -0.3px;
+  }
+  .next-btn { width: 100%; border: none; border-radius: var(--radius-lg); padding: 18px; font-family: inherit; font-size: 17px; font-weight: 900; cursor: pointer; background: var(--machine-body); color: #fff; box-shadow: 0 4px 0 #9a0000, var(--shadow-btn); transition: transform 0.12s, box-shadow 0.12s; letter-spacing: -0.3px; }
+  .next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #9a0000, var(--shadow-btn); }
+  .next-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #9a0000; }
+
+  /* ── 이스터에그 모달 ── */
+  .easter-overlay {
+    position: fixed; inset: 0;
+    background: rgba(26,24,48,0.5);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 400; opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    padding: 40px 40px;
+  }
+  .easter-overlay.show { opacity: 1; pointer-events: all; }
+  .easter-card {
+    background: #1A1830;
+    border-radius: 24px; padding: 32px 28px 28px;
+    max-width: 280px; width: 100%;
+    text-align: center;
+    transform: scale(0.8);
+    transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+    position: relative; overflow: hidden;
+  }
+  .easter-overlay.show .easter-card { transform: scale(1); }
+  .easter-icon { font-size: 52px; margin-bottom: 12px; line-height: 1; }
+  .easter-msg {
+    font-size: 20px; font-weight: 900; color: #fff;
+    line-height: 1.5; margin-bottom: 6px;
+  }
+  .easter-sub {
+    font-size: 15px; font-weight: 700;
+    line-height: 1.6;
+  }
+  /* 별 파티클 */
+  .easter-particle {
+    position: absolute; font-size: 16px;
+    animation: easterFly 1.2s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes easterFly {
+    0%   { transform: translate(0,0) scale(1) rotate(0deg); opacity: 1; }
+    100% { transform: translate(var(--edx), var(--edy)) scale(0.2) rotate(var(--erot)); opacity: 0; }
+  }
+
+  /* ── BADGE PANEL ── */
+  .badge-overlay { position: fixed; inset: 0; background: rgba(26,24,48,0.65); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); display: flex; align-items: flex-end; justify-content: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+  .badge-overlay.show { opacity: 1; pointer-events: all; }
+  .badge-panel { background: #fff; border-radius: var(--radius-xl) var(--radius-xl) 0 0; width: 100%; max-width: 440px; padding: 18px 16px 24px; transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.22,1,0.36,1); max-height: min(92vh, 92dvh); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .badge-overlay.show .badge-panel { transform: translateY(0); }
+  .badge-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .badge-panel-title { font-size: 18px; font-weight: 900; color: var(--text-main); }
+  .badge-panel-close { width: 32px; height: 32px; border-radius: 50%; border: none; background: #FFE8E8; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+  .badge-panel-sub { font-size: 11px; color: var(--text-sub); margin-bottom: 5px; }
+  .badge-today-info { background: #FFF0F0; border-radius: var(--radius-md); padding: 7px 12px; font-size: 11px; color: #C62828; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .badge-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; padding: 0 2px; }
+  .badge-item { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: default; }
+  .badge-can-wrap { position: relative; width: 65%; aspect-ratio: 1/1.8; margin: 0 auto; }
+  .badge-can-wrap svg { width: 100%; height: 100%; }
+  .badge-can-name { font-size: 7.5px; font-weight: 700; text-align: center; color: var(--text-sub); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+  .badge-can-name.unlocked { color: var(--text-main); }
+  .badge-unlock-anim { animation: badgePop 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+  @keyframes badgePop { 0%{transform:scale(0.5);opacity:0} 100%{transform:scale(1);opacity:1} }
+
+  /* ── STAR BURST ── */
+  .star-burst { position: fixed; pointer-events: none; z-index: 300; top: 0; left: 0; width: 100%; height: 100%; }
+  .star-particle { position: absolute; font-size: 20px; animation: starFly 0.8s ease-out forwards; opacity: 1; }
+  @keyframes starFly { 0%{transform:translate(0,0) scale(1) rotate(0deg);opacity:1} 100%{transform:translate(var(--dx),var(--dy)) scale(0.3) rotate(360deg);opacity:0} }
+  @keyframes popIn { 0%{transform:scale(0);opacity:0} 100%{transform:scale(1);opacity:1} }
+
+  @media (max-width: 360px) { .chosung-display{font-size:44px;letter-spacing:8px} .cat-btn{font-size:13px;padding:10px 6px} }
+  @media (prefers-reduced-motion: reduce) { *,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important} }
+</style>
+</head>
+<body>
+
+<div class="bg-emoji-layer" id="bg-emoji-layer" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="logo">
+    🥫 <span class="logo-prefix">똑똑 초성 </span><span class="logo-suffix">자판기</span>
+  </div>
+  <button class="badge-btn" id="badge-btn" aria-label="색깔 캔 컬렉션 보기">
+    <div class="badge-btn-can" id="badge-btn-can">
+      <svg viewBox="0 0 18 36" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="btnCanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#B71C1C"/>
+            <stop offset="25%" stop-color="#E53935"/>
+            <stop offset="50%" stop-color="#EF5350"/>
+            <stop offset="75%" stop-color="#E53935"/>
+            <stop offset="100%" stop-color="#B71C1C"/>
+          </linearGradient>
+          <linearGradient id="btnCanShine" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="rgba(255,255,255,0)"/>
+            <stop offset="40%" stop-color="rgba(255,255,255,0.25)"/>
+            <stop offset="60%" stop-color="rgba(255,255,255,0)"/>
+          </linearGradient>
+        </defs>
+        <path d="M 0,4 L 18,4 L 18,29 Q 18,34 13,34 L 5,34 Q 0,34 0,29 Z" fill="url(#btnCanGrad)"/>
+        <path d="M 0,4 L 18,4 L 18,29 Q 18,34 13,34 L 5,34 Q 0,34 0,29 Z" fill="url(#btnCanShine)"/>
+        <path d="M 0,27 L 18,27 L 18,29 Q 18,34 13,34 L 5,34 Q 0,34 0,29 Z" fill="rgba(0,0,0,0.15)"/>
+        <ellipse cx="9" cy="4" rx="9" ry="2.8" fill="#EF5350"/>
+        <ellipse cx="9" cy="4" rx="9" ry="2.8" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="0.5"/>
+        <ellipse cx="9" cy="4" rx="3.5" ry="1.2" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="0.8"/>
+        <rect x="7" y="1" width="4" height="3.5" rx="1.2" fill="rgba(255,255,255,0.38)"/>
+        <rect x="2.5" y="8" width="2.5" height="18" rx="1.2" fill="rgba(255,255,255,0.2)"/>
+      </svg>
+    </div>
+    <div class="badge-new-dot" id="badge-dot"></div>
+  </button></header>
+
+<div class="machine-wrap">
+  <div class="machine">
+    <div class="machine-label">DDOKDDOK CHOSUNG MACHINE</div>
+    <div class="machine-window">
+      <div class="can-grid" id="can-grid"></div>
+    </div>
+
+    <!-- 카테고리 패널 (자판기 안) -->
+    <div class="cat-panel">
+      <div class="cat-circle-grid" id="cat-grid">
+        <!-- 동그라미 버튼들은 JS로 생성 -->
+      </div>
+      <button class="cat-random-btn" id="cat-random-btn" aria-label="아무거나 카테고리 선택">
+        <span class="random-icon">🎰</span>
+        <span>아무거나<span class="random-sub"> — 어떤 캔이 나올까?</span></span>
+      </button>
+    </div>
+
+    <!-- OUT 슬롯 + 동전 넣기 버튼 -->
+    <div class="machine-bottom">
+      <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+        <div class="outlet-wrapper">
+          <div class="outlet-slot" id="outlet-slot"><span class="outlet-label">OUT</span></div>
+        </div>
+        <div class="hint-text-inner" id="hint-text">카테고리를 고르고 동전을 넣어보세요!</div>
+      </div>
+      <div class="coin-circle-wrap" id="coin-circle-wrap">
+        <div style="position:relative; display:inline-block;">
+          <button class="coin-btn-inner" id="coin-btn" disabled aria-label="동전 넣기">
+            <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-58%);">🪙</span>
+          </button>
+          <!-- 이스터에그용 투명 클릭 레이어 -->
+          <div id="coin-tap-layer" style="position:absolute;inset:0;border-radius:50%;z-index:3;cursor:pointer;"></div>
+        </div>
+        <div class="coin-btn-label">동전 넣기</div>
+      </div>
+    </div>
+
+    <div class="machine-footer">
+      <div class="brand-dots"><div class="brand-dot"></div><div class="brand-dot"></div><div class="brand-dot"></div></div>
+      <div class="brand-dots"><div class="brand-dot"></div><div class="brand-dot"></div><div class="brand-dot"></div></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="collection-wrap">
+  <div class="collection-box">
+    <div class="collection-header" id="collection-header" aria-expanded="false">
+      <div class="collection-header-left">
+        <div class="collection-title">🧺 오늘 모은 캔</div>
+        <div class="collection-preview" id="collection-preview"></div>
+      </div>
+      <div class="collection-arrow" id="collection-arrow">▼</div>
+    </div>
+    <div class="collection-body" id="collection-body">
+      <div class="collection-items" id="collection-items">
+        <div class="empty-collection">아직 모은 캔이 없어요.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="credit-wrap">💝 엄마가 <strong style="color:#F5C842;font-weight:900;">루인이 &amp; 아인이</strong>를 위해 만든 초성 자판기 🥫</p>
+
+<!-- 퀴즈 오버레이 (중앙) -->
+<div class="overlay" id="overlay" role="dialog" aria-modal="true">
+  <div class="modal-card" id="modal-card">
+    <div class="modal-handle"></div>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<!-- 뱃지 패널 (하단 슬라이드) -->
+<div class="badge-overlay" id="badge-overlay" role="dialog" aria-modal="true" aria-label="색깔 캔 컬렉션">
+  <div class="badge-panel" id="badge-panel">
+    <div class="modal-handle"></div>
+    <div class="badge-panel-header">
+      <div class="badge-panel-title">🥫 색깔 캔 컬렉션</div>
+      <button class="badge-panel-close" id="badge-close" aria-label="닫기">✕</button>
+    </div>
+    <div class="badge-panel-sub" id="badge-sub">하루 10문제를 풀면 색깔 캔이 1개씩 생겨요!</div>
+    <div class="badge-today-info" id="badge-today-info"></div>
+    <div class="badge-grid" id="badge-grid"></div>
+  </div>
+</div>
+
+<!-- 이스터에그 1: 타이틀 3번 탭 -->
+<div class="easter-overlay" id="easter1" role="dialog">
+  <div class="easter-card" id="easter1-card">
+    <div class="easter-icon">🥫</div>
+    <div class="easter-msg">루인이, 아인이<br>사랑해! 💝</div>
+    <div class="easter-sub" style="color:#FFD740;">엄마가 초성 자판기를<br>뚝딱 만들었어! 🔧</div>
+  </div>
+</div>
+
+<!-- 이스터에그 2: 동전 넣기 3번 탭 -->
+<div class="easter-overlay" id="easter2" role="dialog">
+  <div class="easter-card" id="easter2-card">
+    <div class="easter-icon">🪙</div>
+    <div class="easter-msg">엄마가 돈 많이 벌어서</div>
+    <div class="easter-sub" style="color:#4CAF82;">루인이 &amp; 아인이<br>맛있는거 많이 사줄게! 🍱</div>
+  </div>
+</div>
+
+<div class="star-burst" id="star-burst" aria-hidden="true"></div>
+
+<script>
+/* ─── DATA ── */
+const RANDOM_CAT = '아무거나'; // 랜덤 카테고리 상수 키
+
+const CATEGORIES = [
+  { id:'동물',    icon:'🐾' },
+  { id:'음식',    icon:'🍱' },
+  { id:'동화',    icon:'📖' },
+  { id:'색깔',    icon:'🎨' },
+  { id:'탈것',    icon:'🚀' },
+  { id:'장소',    icon:'📍' },
+  { id:'아무거나', icon:'🎰' },
+];
+
+const QUESTIONS = [
+  {category:'동물', answer:'호랑이', chosung:'ㅎ ㄹ ㅇ', hint:'줄무늬가 있는 큰 고양이과 동물이에요'},
+  {category:'동물', answer:'사자', chosung:'ㅅ ㅈ', hint:'갈기가 있고 백수의 왕이에요'},
+  {category:'동물', answer:'코끼리', chosung:'ㅋ ㄲ ㄹ', hint:'코가 아주 길고 몸이 커요'},
+  {category:'동물', answer:'기린', chosung:'ㄱ ㄹ', hint:'목이 아주 길어요'},
+  {category:'동물', answer:'펭귄', chosung:'ㅍ ㄱ', hint:'날지 못하고 수영을 잘해요'},
+  {category:'동물', answer:'돌고래', chosung:'ㄷ ㄱ ㄹ', hint:'바다에 살며 점프를 잘해요'},
+  {category:'동물', answer:'북극곰', chosung:'ㅂ ㄱ ㄱ', hint:'하얀 털을 가진 큰 곰이에요'},
+  {category:'동물', answer:'캥거루', chosung:'ㅋ ㄱ ㄹ', hint:'배에 주머니가 있어요'},
+  {category:'동물', answer:'원숭이', chosung:'ㅇ ㅅ ㅇ', hint:'나무를 잘 타고 바나나를 좋아해요'},
+  {category:'동물', answer:'악어', chosung:'ㅇ ㅇ', hint:'이빨이 아주 날카로운 파충류예요'},
+  {category:'동물', answer:'독수리', chosung:'ㄷ ㅅ ㄹ', hint:'하늘을 높이 나는 큰 새예요'},
+  {category:'동물', answer:'거북이', chosung:'ㄱ ㅂ ㅇ', hint:'등에 딱딱한 껍질이 있어요'},
+  {category:'동물', answer:'하마', chosung:'ㅎ ㅁ', hint:'몸이 크고 물속에 잘 들어가요'},
+  {category:'동물', answer:'치타', chosung:'ㅊ ㅌ', hint:'세상에서 가장 빠른 동물이에요'},
+  {category:'동물', answer:'홍학', chosung:'ㅎ ㅎ', hint:'분홍색 깃털을 가진 새예요'},
+  {category:'동물', answer:'너구리', chosung:'ㄴ ㄱ ㄹ', hint:'눈 주위가 검은 털로 덮여있어요'},
+  {category:'동물', answer:'두더지', chosung:'ㄷ ㄷ ㅈ', hint:'땅속에 굴을 파고 살아요'},
+  {category:'동물', answer:'미어캣', chosung:'ㅁ ㅇ ㅋ', hint:'두 발로 서서 주변을 살펴봐요'},
+  {category:'동물', answer:'오랑우탄', chosung:'ㅇ ㄹ ㅇ ㅌ', hint:'빨간 털을 가진 유인원이에요'},
+  {category:'동물', answer:'고릴라', chosung:'ㄱ ㄹ ㄹ', hint:'가장 큰 유인원이에요'},
+  {category:'동물', answer:'다람쥐', chosung:'ㄷ ㄹ ㅈ', hint:'도토리를 좋아하고 나무를 잘 타요'},
+  {category:'동물', answer:'토끼', chosung:'ㅌ ㄲ', hint:'귀가 길고 깡충깡충 뛰어요'},
+  {category:'동물', answer:'햄스터', chosung:'ㅎ ㅅ ㅌ', hint:'볼주머니에 먹이를 저장해요'},
+  {category:'동물', answer:'고슴도치', chosung:'ㄱ ㅅ ㄷ ㅊ', hint:'몸에 뾰족한 가시가 있어요'},
+  {category:'동물', answer:'부엉이', chosung:'ㅂ ㅇ ㅇ', hint:'밤에 활동하고 고개를 잘 돌려요'},
+  {category:'동물', answer:'앵무새', chosung:'ㅇ ㅁ ㅅ', hint:'사람 말을 따라 할 수 있어요'},
+  {category:'동물', answer:'플라밍고', chosung:'ㅍ ㄹ ㅁ ㄱ', hint:'한 발로 서 있는 분홍새예요'},
+  {category:'동물', answer:'카멜레온', chosung:'ㅋ ㅁ ㄹ ㅇ', hint:'몸 색깔을 바꿀 수 있어요'},
+  {category:'동물', answer:'문어', chosung:'ㅁ ㅇ', hint:'다리가 여덟 개예요'},
+  {category:'동물', answer:'불가사리', chosung:'ㅂ ㄱ ㅅ ㄹ', hint:'바다에 사는 별 모양 생물이에요'},
+  {category:'동물', answer:'해파리', chosung:'ㅎ ㅍ ㄹ', hint:'투명하고 바다에 둥둥 떠다녀요'},
+  {category:'동물', answer:'가오리', chosung:'ㄱ ㅇ ㄹ', hint:'납작한 몸을 가진 바닷속 생물이에요'},
+  {category:'동물', answer:'상어', chosung:'ㅅ ㅇ', hint:'날카로운 이빨을 가진 바다의 포식자예요'},
+  {category:'동물', answer:'고래', chosung:'ㄱ ㄹ', hint:'바다에서 가장 큰 동물이에요'},
+  {category:'동물', answer:'나비', chosung:'ㄴ ㅂ', hint:'아름다운 날개를 가진 곤충이에요'},
+  {category:'동물', answer:'무당벌레', chosung:'ㅁ ㄷ ㅂ ㄹ', hint:'빨간 몸에 검은 점이 있어요'},
+  {category:'동물', answer:'사슴', chosung:'ㅅ ㅅ', hint:'뿔이 멋있고 빠르게 달려요'},
+  {category:'동물', answer:'여우', chosung:'ㅇ ㅇ', hint:'꼬리가 길고 영리한 동물이에요'},
+  {category:'동물', answer:'늑대', chosung:'ㄴ ㄷ', hint:'무리를 지어 생활해요'},
+  {category:'동물', answer:'표범', chosung:'ㅍ ㅂ', hint:'몸에 검은 점무늬가 있어요'},
+  {category:'동물', answer:'물개', chosung:'ㅁ ㄱ', hint:'바다에 살며 공을 잘 다뤄요'},
+  {category:'동물', answer:'오리', chosung:'ㅇ ㄹ', hint:'꽥꽥 소리를 내고 물에서 헤엄쳐요'},
+  {category:'동물', answer:'공작', chosung:'ㄱ ㅈ', hint:'화려한 깃털을 활짝 펼쳐요'},
+  {category:'동물', answer:'타조', chosung:'ㅌ ㅈ', hint:'날지 못하는 가장 큰 새예요'},
+  {category:'동물', answer:'하이에나', chosung:'ㅎ ㅇ ㅇ ㄴ', hint:'웃는 것 같은 소리를 내요'},
+  {category:'동물', answer:'재규어', chosung:'ㅈ ㄱ ㅇ', hint:'점무늬가 있는 아메리카의 고양이과예요'},
+  {category:'동물', answer:'비버', chosung:'ㅂ ㅂ', hint:'나무를 갉아 댐을 만들어요'},
+  {category:'동물', answer:'수달', chosung:'ㅅ ㄷ', hint:'물속에서 헤엄치며 조개를 먹어요'},
+  {category:'동물', answer:'두루미', chosung:'ㄷ ㄹ ㅁ', hint:'흰 깃털을 가진 긴 다리의 새예요'},
+  {category:'동물', answer:'코알라', chosung:'ㅋ ㅇ ㄹ', hint:'유칼립투스 잎을 먹고 나무 위에서 자요'},
+  {category:'음식', answer:'김밥', chosung:'ㄱ ㅂ', hint:'소풍 도시락으로 자주 먹어요'},
+  {category:'음식', answer:'닭갈비', chosung:'ㄷ ㄱ ㅂ', hint:'닭고기를 양념에 볶은 음식이에요'},
+  {category:'음식', answer:'떡볶이', chosung:'ㄸ ㅂ ㅇ', hint:'빨간 소스에 떡을 볶은 음식이에요'},
+  {category:'음식', answer:'비빔밥', chosung:'ㅂ ㅂ ㅂ', hint:'여러 가지 나물을 밥에 비벼 먹어요'},
+  {category:'음식', answer:'삼겹살', chosung:'ㅅ ㄱ ㅅ', hint:'불판에 구워 먹는 돼지고기예요'},
+  {category:'음식', answer:'순대', chosung:'ㅅ ㄷ', hint:'돼지 창자에 여러 재료를 넣어 찐 음식이에요'},
+  {category:'음식', answer:'잡채', chosung:'ㅈ ㅊ', hint:'당면과 여러 채소를 볶은 음식이에요'},
+  {category:'음식', answer:'된장찌개', chosung:'ㄷ ㅈ ㅉ ㄱ', hint:'된장으로 끓인 찌개예요'},
+  {category:'음식', answer:'김치찌개', chosung:'ㄱ ㅊ ㅉ ㄱ', hint:'김치를 넣어 끓인 찌개예요'},
+  {category:'음식', answer:'불고기', chosung:'ㅂ ㄱ ㄱ', hint:'달콤한 양념에 재운 소고기예요'},
+  {category:'음식', answer:'갈비탕', chosung:'ㄱ ㅂ ㅌ', hint:'소갈비를 넣어 끓인 국이에요'},
+  {category:'음식', answer:'냉면', chosung:'ㄴ ㅁ', hint:'시원한 육수에 면을 말아 먹어요'},
+  {category:'음식', answer:'국수', chosung:'ㄱ ㅅ', hint:'가늘고 긴 면 요리예요'},
+  {category:'음식', answer:'라면', chosung:'ㄹ ㅁ', hint:'끓는 물에 스프와 함께 끓여 먹어요'},
+  {category:'음식', answer:'피자', chosung:'ㅍ ㅈ', hint:'치즈가 듬뿍 올라간 이탈리아 음식이에요'},
+  {category:'음식', answer:'햄버거', chosung:'ㅎ ㅂ ㄱ', hint:'빵 사이에 패티가 들어간 음식이에요'},
+  {category:'음식', answer:'타코', chosung:'ㅌ ㅋ', hint:'토르티야에 재료를 넣어 먹는 멕시코 음식이에요'},
+  {category:'음식', answer:'초밥', chosung:'ㅊ ㅂ', hint:'밥 위에 생선을 올린 일본 음식이에요'},
+  {category:'음식', answer:'라멘', chosung:'ㄹ ㅁ', hint:'국물이 있는 일본 면 요리예요'},
+  {category:'음식', answer:'짜장면', chosung:'ㅉ ㅈ ㅁ', hint:'검은 소스를 면에 비벼 먹어요'},
+  {category:'음식', answer:'짬뽕', chosung:'ㅉ ㅃ', hint:'매콤한 국물에 면이 들어간 중국 음식이에요'},
+  {category:'음식', answer:'탕수육', chosung:'ㅌ ㅅ ㅇ', hint:'바삭하게 튀긴 고기에 소스를 뿌려요'},
+  {category:'음식', answer:'만두', chosung:'ㅁ ㄷ', hint:'얇은 피에 소를 넣어 빚은 음식이에요'},
+  {category:'음식', answer:'호떡', chosung:'ㅎ ㄸ', hint:'달콤한 소가 들어간 납작한 빵이에요'},
+  {category:'음식', answer:'붕어빵', chosung:'ㅂ ㅇ ㅃ', hint:'물고기 모양 틀에 구운 빵이에요'},
+  {category:'음식', answer:'와플', chosung:'ㅇ ㅍ', hint:'격자 무늬가 있는 달콤한 빵이에요'},
+  {category:'음식', answer:'도넛', chosung:'ㄷ ㄴ', hint:'가운데 구멍이 뚫린 달콤한 빵이에요'},
+  {category:'음식', answer:'아이스크림', chosung:'ㅇ ㅇ ㅅ ㅋ ㄹ', hint:'차갑고 달콤하게 얼린 간식이에요'},
+  {category:'음식', answer:'케이크', chosung:'ㅋ ㅇ ㅋ', hint:'생일 파티에 빠질 수 없는 달콤한 빵이에요'},
+  {category:'음식', answer:'쿠키', chosung:'ㅋ ㅋ', hint:'바삭하게 구운 달콤한 과자예요'},
+  {category:'음식', answer:'마카롱', chosung:'ㅁ ㅋ ㄹ', hint:'알록달록 예쁜 프랑스 과자예요'},
+  {category:'음식', answer:'감자튀김', chosung:'ㄱ ㅈ ㅌ ㄱ', hint:'바삭하게 튀긴 감자 간식이에요'},
+  {category:'음식', answer:'치킨', chosung:'ㅊ ㅋ', hint:'바삭하게 튀긴 닭고기예요'},
+  {category:'음식', answer:'오징어볶음', chosung:'ㅇ ㅈ ㅇ ㅂ ㅇ', hint:'오징어를 매콤하게 볶은 반찬이에요'},
+  {category:'음식', answer:'계란말이', chosung:'ㄱ ㄹ ㅁ ㅇ', hint:'계란을 돌돌 말아서 만든 반찬이에요'},
+  {category:'음식', answer:'삼계탕', chosung:'ㅅ ㄱ ㅌ', hint:'닭 안에 인삼을 넣고 끓인 보양식이에요'},
+  {category:'음식', answer:'파전', chosung:'ㅍ ㅈ', hint:'파를 넣어 부친 전이에요'},
+  {category:'음식', answer:'수제비', chosung:'ㅅ ㅈ ㅂ', hint:'밀가루 반죽을 뜯어 넣은 국이에요'},
+  {category:'음식', answer:'칼국수', chosung:'ㅋ ㄱ ㅅ', hint:'칼로 썬 넓적한 면으로 만든 국수예요'},
+  {category:'음식', answer:'보쌈', chosung:'ㅂ ㅆ', hint:'삶은 돼지고기를 배추에 싸 먹어요'},
+  {category:'음식', answer:'해물파전', chosung:'ㅎ ㅁ ㅍ ㅈ', hint:'해산물과 파를 넣어 부친 전이에요'},
+  {category:'음식', answer:'스파게티', chosung:'ㅅ ㅍ ㄱ ㅌ', hint:'토마토 소스에 면을 넣은 이탈리아 음식이에요'},
+  {category:'음식', answer:'카레', chosung:'ㅋ ㄹ', hint:'노란 소스에 고기와 채소를 넣고 끓여요'},
+  {category:'음식', answer:'오므라이스', chosung:'ㅇ ㅁ ㄹ ㅇ ㅅ', hint:'계란으로 감싼 볶음밥이에요'},
+  {category:'음식', answer:'샌드위치', chosung:'ㅅ ㄷ ㅇ ㅊ', hint:'빵 사이에 재료를 넣은 음식이에요'},
+  {category:'음식', answer:'타르트', chosung:'ㅌ ㄹ ㅌ', hint:'바삭한 껍질 안에 크림이나 과일이 들어가요'},
+  {category:'음식', answer:'크로아상', chosung:'ㅋ ㄹ ㅇ ㅅ', hint:'초승달 모양의 바삭한 프랑스 빵이에요'},
+  {category:'음식', answer:'팬케이크', chosung:'ㅍ ㅋ ㅇ ㅋ', hint:'납작하게 구운 달콤한 아침 음식이에요'},
+  {category:'음식', answer:'치즈케이크', chosung:'ㅊ ㅈ ㅋ ㅇ ㅋ', hint:'부드러운 치즈로 만든 케이크예요'},
+  {category:'음식', answer:'쫄면', chosung:'ㅉ ㅁ', hint:'쫄깃한 면에 새콤달콤 양념을 넣어요'},
+  {category:'동화', answer:'백설공주', chosung:'ㅂ ㅅ ㄱ ㅈ', hint:'사과를 먹고 잠든 공주예요'},
+  {category:'동화', answer:'신데렐라', chosung:'ㅅ ㄷ ㄹ ㄹ', hint:'유리구두를 잃어버린 공주예요'},
+  {category:'동화', answer:'라푼젤', chosung:'ㄹ ㅍ ㅈ', hint:'탑에 갇혀 긴 머리를 가진 공주예요'},
+  {category:'동화', answer:'잠자는숲속의공주', chosung:'ㅈ ㅈ ㄴ ㅅ ㅅ ㅇ ㄱ ㅈ', hint:'가시에 찔려 잠든 공주예요'},
+  {category:'동화', answer:'인어공주', chosung:'ㅇ ㅇ ㄱ ㅈ', hint:'바다에 사는 공주가 사람이 되고 싶어해요'},
+  {category:'동화', answer:'미녀와야수', chosung:'ㅁ ㄴ ㅇ ㅇ ㅅ', hint:'저주에 걸린 야수와 아름다운 소녀 이야기예요'},
+  {category:'동화', answer:'알라딘', chosung:'ㅇ ㄹ ㄷ', hint:'마법 램프의 지니가 나오는 이야기예요'},
+  {category:'동화', answer:'피노키오', chosung:'ㅍ ㄴ ㅋ ㅇ', hint:'거짓말하면 코가 길어지는 나무 인형이에요'},
+  {category:'동화', answer:'헨젤과그레텔', chosung:'ㅎ ㅈ ㄱ ㄱ ㄹ ㅌ', hint:'과자로 만든 집이 나오는 이야기예요'},
+  {category:'동화', answer:'빨간모자', chosung:'ㅃ ㄱ ㅁ ㅈ', hint:'늑대를 만난 빨간 두건을 쓴 소녀예요'},
+  {category:'동화', answer:'엄지공주', chosung:'ㅇ ㅈ ㄱ ㅈ', hint:'꽃 속에서 태어난 아주 작은 소녀예요'},
+  {category:'동화', answer:'성냥팔이소녀', chosung:'ㅅ ㄴ ㅍ ㅇ ㅅ ㄴ', hint:'추운 겨울 성냥을 파는 소녀 이야기예요'},
+  {category:'동화', answer:'미운오리새끼', chosung:'ㅁ ㅇ ㅇ ㄹ ㅅ ㄲ', hint:'자라서 백조가 된 못생긴 오리 이야기예요'},
+  {category:'동화', answer:'개구리왕자', chosung:'ㄱ ㄱ ㄹ ㅇ ㅈ', hint:'개구리가 공주의 키스로 왕자가 돼요'},
+  {category:'동화', answer:'브레멘음악대', chosung:'ㅂ ㄹ ㅁ ㅇ ㅇ ㄷ', hint:'동물들이 함께 음악을 연주하러 떠나요'},
+  {category:'동화', answer:'아기돼지삼형제', chosung:'ㅇ ㄱ ㄷ ㅈ ㅅ ㅎ ㅈ', hint:'늑대에게 집이 날아간 세 돼지 이야기예요'},
+  {category:'동화', answer:'늑대와일곱마리아기염소', chosung:'ㄴ ㄷ ㅇ ㅇ ㄱ ㅁ ㄹ ㅇ ㄱ ㅇ ㅅ', hint:'늑대가 엄마 목소리를 흉내 내요'},
+  {category:'동화', answer:'황금거위', chosung:'ㅎ ㄱ ㄱ ㅇ', hint:'황금 알을 낳는 거위 이야기예요'},
+  {category:'동화', answer:'잭과콩나무', chosung:'ㅈ ㄱ ㅋ ㄴ ㅁ', hint:'하늘까지 자란 콩나무를 타고 올라가요'},
+  {category:'동화', answer:'금도끼은도끼', chosung:'ㄱ ㄷ ㄲ ㅇ ㄷ ㄲ', hint:'연못에 도끼를 빠뜨린 나무꾼 이야기예요'},
+  {category:'동화', answer:'토끼와거북이', chosung:'ㅌ ㄲ ㅇ ㄱ ㅂ ㅇ', hint:'느려도 포기하지 않으면 이길 수 있어요'},
+  {category:'동화', answer:'개미와베짱이', chosung:'ㄱ ㅁ ㅇ ㅂ ㅉ ㅇ', hint:'열심히 일한 개미와 노래만 한 베짱이예요'},
+  {category:'동화', answer:'흥부와놀부', chosung:'ㅎ ㅂ ㅇ ㄴ ㅂ', hint:'착한 흥부와 욕심쟁이 놀부 이야기예요'},
+  {category:'동화', answer:'콩쥐팥쥐', chosung:'ㅋ ㅈ ㅍ ㅈ', hint:'착한 콩쥐와 나쁜 팥쥐 이야기예요'},
+  {category:'동화', answer:'심청전', chosung:'ㅅ ㅊ ㅈ', hint:'눈먼 아버지를 위해 바다에 뛰어든 효녀예요'},
+  {category:'동화', answer:'춘향전', chosung:'ㅊ ㅎ ㅈ', hint:'이도령과 춘향의 사랑 이야기예요'},
+  {category:'동화', answer:'홍길동전', chosung:'ㅎ ㄱ ㄷ ㅈ', hint:'신출귀몰한 조선 시대 영웅 이야기예요'},
+  {category:'동화', answer:'선녀와나무꾼', chosung:'ㅅ ㄴ ㅇ ㄴ ㅁ ㄲ', hint:'날개옷을 숨긴 나무꾼과 선녀 이야기예요'},
+  {category:'동화', answer:'해와달이된오누이', chosung:'ㅎ ㅇ ㄷ ㅇ ㄷ ㅇ ㄴ ㅇ', hint:'호랑이를 피해 하늘로 올라간 남매 이야기예요'},
+  {category:'동화', answer:'구렁덩덩새선비', chosung:'ㄱ ㄹ ㄷ ㄷ ㅅ ㅅ ㅂ', hint:'구렁이가 사람으로 변한 이야기예요'},
+  {category:'동화', answer:'피터팬', chosung:'ㅍ ㅌ ㅍ', hint:'네버랜드에 사는 날아다니는 소년이에요'},
+  {category:'동화', answer:'오즈의마법사', chosung:'ㅇ ㅈ ㅇ ㅁ ㅂ ㅅ', hint:'토토와 함께 오즈로 간 도로시 이야기예요'},
+  {category:'동화', answer:'이상한나라의앨리스', chosung:'ㅇ ㅅ ㅎ ㄴ ㄹ ㅇ ㅇ ㄹ ㅅ', hint:'토끼를 따라 이상한 나라로 간 소녀예요'},
+  {category:'동화', answer:'걸리버여행기', chosung:'ㄱ ㄹ ㅂ ㅇ ㅎ ㄱ', hint:'소인국과 거인국을 여행한 이야기예요'},
+  {category:'동화', answer:'보물섬', chosung:'ㅂ ㅁ ㅅ', hint:'해적의 보물을 찾아 떠나는 이야기예요'},
+  {category:'동화', answer:'로빈슨크루소', chosung:'ㄹ ㅂ ㅅ ㅋ ㄹ ㅅ', hint:'무인도에서 살아남은 이야기예요'},
+  {category:'동화', answer:'어린왕자', chosung:'ㅇ ㄹ ㅇ ㅈ', hint:'별에서 온 어린 왕자와 여우 이야기예요'},
+  {category:'동화', answer:'해리포터', chosung:'ㅎ ㄹ ㅍ ㅌ', hint:'마법 학교에 다니는 마법사 소년이에요'},
+  {category:'동화', answer:'나니아연대기', chosung:'ㄴ ㄴ ㅇ ㅇ ㄷ ㄱ', hint:'옷장 속으로 들어가는 마법의 나라예요'},
+  {category:'동화', answer:'마법사의제자', chosung:'ㅁ ㅂ ㅅ ㅇ ㅈ ㅈ', hint:'마법사 밑에서 배우는 제자 이야기예요'},
+  {category:'동화', answer:'빨강머리앤', chosung:'ㅃ ㄱ ㅁ ㄹ ㅇ', hint:'초록 지붕 집에 온 상상력 넘치는 소녀예요'},
+  {category:'동화', answer:'키다리아저씨', chosung:'ㅋ ㄷ ㄹ ㅇ ㅈ ㅆ', hint:'얼굴 모르는 후원자에게 편지를 쓰는 소녀예요'},
+  {category:'동화', answer:'플란다스의개', chosung:'ㅍ ㄹ ㄷ ㅅ ㅇ ㄱ', hint:'강아지 파트라슈와 소년 넬로 이야기예요'},
+  {category:'동화', answer:'작은아씨들', chosung:'ㅈ ㅇ ㅇ ㅆ ㄷ', hint:'네 자매가 꿈을 향해 성장하는 이야기예요'},
+  {category:'동화', answer:'비밀의화원', chosung:'ㅂ ㅁ ㅇ ㅎ ㅇ', hint:'잠긴 문 뒤에 아름다운 정원이 있어요'},
+  {category:'동화', answer:'톰소여의모험', chosung:'ㅌ ㅅ ㅇ ㅇ ㅁ ㅎ', hint:'미시시피 강가에서 모험하는 소년 이야기예요'},
+  {category:'동화', answer:'허클베리핀', chosung:'ㅎ ㅋ ㅂ ㄹ ㅍ', hint:'뗏목을 타고 강을 내려가는 소년 이야기예요'},
+  {category:'동화', answer:'몬테크리스토백작', chosung:'ㅁ ㅌ ㅋ ㄹ ㅅ ㅌ ㅂ ㅈ', hint:'억울하게 감옥에 갔다 복수하는 이야기예요'},
+  {category:'동화', answer:'돈키호테', chosung:'ㄷ ㅋ ㅎ ㅌ', hint:'스스로 기사라고 생각하는 엉뚱한 아저씨예요'},
+  {category:'동화', answer:'삼총사', chosung:'ㅅ ㅊ ㅅ', hint:'세 명의 멋진 총사들의 모험 이야기예요'},
+  {category:'색깔', answer:'빨강', chosung:'ㅃ ㄱ', hint:'사과나 소방차 색깔이에요'},
+  {category:'색깔', answer:'파랑', chosung:'ㅍ ㄹ', hint:'맑은 하늘이나 바다 색깔이에요'},
+  {category:'색깔', answer:'노랑', chosung:'ㄴ ㄹ', hint:'바나나나 해바라기 색깔이에요'},
+  {category:'색깔', answer:'초록', chosung:'ㅊ ㄹ', hint:'나뭇잎이나 풀 색깔이에요'},
+  {category:'색깔', answer:'보라', chosung:'ㅂ ㄹ', hint:'포도나 라벤더 색깔이에요'},
+  {category:'색깔', answer:'주황', chosung:'ㅈ ㅎ', hint:'귤이나 당근 색깔이에요'},
+  {category:'색깔', answer:'분홍', chosung:'ㅂ ㅎ', hint:'벚꽃이나 장미 색깔이에요'},
+  {category:'색깔', answer:'하늘색', chosung:'ㅎ ㄴ ㅅ', hint:'맑은 날 하늘 색깔이에요'},
+  {category:'색깔', answer:'민트색', chosung:'ㅁ ㅌ ㅅ', hint:'민트 사탕처럼 연한 초록빛이에요'},
+  {category:'색깔', answer:'라벤더', chosung:'ㄹ ㅂ ㄷ', hint:'연한 보라색 꽃 이름이에요'},
+  {category:'색깔', answer:'코랄', chosung:'ㅋ ㄹ', hint:'산호처럼 붉은 주황빛이에요'},
+  {category:'색깔', answer:'살구색', chosung:'ㅅ ㄱ ㅅ', hint:'살구 과일처럼 연한 주황빛이에요'},
+  {category:'색깔', answer:'베이지', chosung:'ㅂ ㅇ ㅈ', hint:'크림처럼 연한 갈색빛이에요'},
+  {category:'색깔', answer:'카키', chosung:'ㅋ ㅋ', hint:'군복처럼 어두운 녹갈색이에요'},
+  {category:'색깔', answer:'와인색', chosung:'ㅇ ㅇ ㅅ', hint:'포도주처럼 짙은 붉은색이에요'},
+  {category:'색깔', answer:'남색', chosung:'ㄴ ㅅ', hint:'짙은 파란색이에요'},
+  {category:'색깔', answer:'청록', chosung:'ㅊ ㄹ', hint:'파랑과 초록이 섞인 색이에요'},
+  {category:'색깔', answer:'올리브색', chosung:'ㅇ ㄹ ㅂ ㅅ', hint:'올리브 열매처럼 어두운 녹색이에요'},
+  {category:'색깔', answer:'자주색', chosung:'ㅈ ㅈ ㅅ', hint:'짙은 붉은 보라색이에요'},
+  {category:'색깔', answer:'금색', chosung:'ㄱ ㅅ', hint:'황금처럼 빛나는 노란빛 색이에요'},
+  {category:'색깔', answer:'은색', chosung:'ㅇ ㅅ', hint:'은처럼 반짝이는 회색빛 색이에요'},
+  {category:'색깔', answer:'흰색', chosung:'ㅎ ㅅ', hint:'눈처럼 깨끗한 색이에요'},
+  {category:'색깔', answer:'검정', chosung:'ㄱ ㅈ', hint:'밤하늘처럼 어두운 색이에요'},
+  {category:'색깔', answer:'회색', chosung:'ㅎ ㅅ', hint:'흰색과 검정 중간 색이에요'},
+  {category:'색깔', answer:'갈색', chosung:'ㄱ ㅅ', hint:'흙이나 나무껍질 같은 색이에요'},
+  {category:'색깔', answer:'연두색', chosung:'ㅇ ㄷ ㅅ', hint:'봄에 새로 돋아나는 잎처럼 연한 초록색이에요'},
+  {category:'색깔', answer:'형광색', chosung:'ㅎ ㄱ ㅅ', hint:'아주 밝고 눈에 잘 띄는 색이에요'},
+  {category:'색깔', answer:'인디고', chosung:'ㅇ ㄷ ㄱ', hint:'짙은 청남색이에요'},
+  {category:'색깔', answer:'코발트', chosung:'ㅋ ㅂ ㅌ', hint:'선명하고 짙은 파란색이에요'},
+  {category:'색깔', answer:'스카이블루', chosung:'ㅅ ㅋ ㅇ ㅂ ㄹ', hint:'맑은 하늘빛 파란색이에요'},
+  {category:'색깔', answer:'핫핑크', chosung:'ㅎ ㅍ ㅋ', hint:'아주 진하고 강렬한 분홍색이에요'},
+  {category:'색깔', answer:'라임색', chosung:'ㄹ ㅇ ㅅ', hint:'라임 과일처럼 밝고 선명한 초록색이에요'},
+  {category:'색깔', answer:'크림색', chosung:'ㅋ ㄹ ㅅ', hint:'크림처럼 살짝 노르스름한 흰색이에요'},
+  {category:'색깔', answer:'브론즈', chosung:'ㅂ ㄹ ㅈ', hint:'청동처럼 약간 붉은 갈색빛 금속색이에요'},
+  {category:'색깔', answer:'터콰이즈', chosung:'ㅌ ㅋ ㅇ ㅈ', hint:'청록색 보석 터키석 색깔이에요'},
+  {category:'색깔', answer:'마젠타', chosung:'ㅁ ㅈ ㅌ', hint:'보라빛 핑크색이에요'},
+  {category:'색깔', answer:'시안', chosung:'ㅅ ㅇ', hint:'밝고 선명한 청록색이에요'},
+  {category:'색깔', answer:'버건디', chosung:'ㅂ ㄱ ㄷ', hint:'짙은 포도주색이에요'},
+  {category:'색깔', answer:'아이보리', chosung:'ㅇ ㅇ ㅂ ㄹ', hint:'상아처럼 약간 노르스름한 흰색이에요'},
+  {category:'색깔', answer:'로즈골드', chosung:'ㄹ ㅈ ㄱ ㄷ', hint:'분홍빛이 도는 금색이에요'},
+  {category:'색깔', answer:'피치색', chosung:'ㅍ ㅊ ㅅ', hint:'복숭아처럼 연한 분홍 주황색이에요'},
+  {category:'색깔', answer:'바이올렛', chosung:'ㅂ ㅇ ㅇ ㄹ', hint:'제비꽃처럼 짙은 보라색이에요'},
+  {category:'색깔', answer:'머스타드', chosung:'ㅁ ㅅ ㅌ ㄷ', hint:'겨자처럼 진한 노란색이에요'},
+  {category:'색깔', answer:'틸', chosung:'ㅌ', hint:'청록색과 비슷한 짙은 파랑초록색이에요'},
+  {category:'색깔', answer:'샴페인색', chosung:'ㅅ ㅍ ㅇ ㅅ', hint:'샴페인처럼 연한 황금빛이에요'},
+  {category:'색깔', answer:'에메랄드', chosung:'ㅇ ㅁ ㄹ ㄷ', hint:'에메랄드 보석처럼 밝고 진한 초록색이에요'},
+  {category:'색깔', answer:'루비색', chosung:'ㄹ ㅂ ㅅ', hint:'루비 보석처럼 선명한 빨간색이에요'},
+  {category:'색깔', answer:'사파이어', chosung:'ㅅ ㅍ ㅇ ㅇ', hint:'사파이어 보석처럼 짙고 선명한 파란색이에요'},
+  {category:'색깔', answer:'오팔색', chosung:'ㅇ ㅍ ㅅ', hint:'여러 색이 은은하게 섞인 보석색이에요'},
+  {category:'색깔', answer:'무지개색', chosung:'ㅁ ㅈ ㄱ ㅅ', hint:'빨주노초파남보 일곱 가지 색이에요'},
+  {category:'탈것', answer:'자전거', chosung:'ㅈ ㅈ ㄱ', hint:'페달을 밟아 타는 두 바퀴 탈것이에요'},
+  {category:'탈것', answer:'오토바이', chosung:'ㅇ ㅌ ㅂ ㅇ', hint:'엔진이 달린 두 바퀴 탈것이에요'},
+  {category:'탈것', answer:'자동차', chosung:'ㅈ ㄷ ㅊ', hint:'도로를 달리는 네 바퀴 탈것이에요'},
+  {category:'탈것', answer:'버스', chosung:'ㅂ ㅅ', hint:'많은 사람이 함께 타는 큰 자동차예요'},
+  {category:'탈것', answer:'기차', chosung:'ㄱ ㅊ', hint:'레일 위를 달리는 긴 탈것이에요'},
+  {category:'탈것', answer:'지하철', chosung:'ㅈ ㅎ ㅊ', hint:'땅 아래 터널을 달리는 기차예요'},
+  {category:'탈것', answer:'비행기', chosung:'ㅂ ㅎ ㄱ', hint:'하늘을 날아서 먼 곳까지 가요'},
+  {category:'탈것', answer:'헬리콥터', chosung:'ㅎ ㄹ ㅋ ㅌ', hint:'날개가 빙글빙글 돌아 하늘을 날아요'},
+  {category:'탈것', answer:'배', chosung:'ㅂ', hint:'물 위를 떠서 이동하는 탈것이에요'},
+  {category:'탈것', answer:'잠수함', chosung:'ㅈ ㅅ ㅎ', hint:'물속으로 잠기는 탈것이에요'},
+  {category:'탈것', answer:'로켓', chosung:'ㄹ ㅋ', hint:'우주로 날아가는 탈것이에요'},
+  {category:'탈것', answer:'우주선', chosung:'ㅇ ㅈ ㅅ', hint:'우주를 여행하는 탈것이에요'},
+  {category:'탈것', answer:'택시', chosung:'ㅌ ㅅ', hint:'요금을 내고 타는 자동차예요'},
+  {category:'탈것', answer:'트럭', chosung:'ㅌ ㄹ', hint:'무거운 물건을 싣고 달리는 큰 차예요'},
+  {category:'탈것', answer:'소방차', chosung:'ㅅ ㅂ ㅊ', hint:'불을 끄러 출동하는 빨간 차예요'},
+  {category:'탈것', answer:'구급차', chosung:'ㄱ ㄱ ㅊ', hint:'아픈 사람을 병원에 데려가는 차예요'},
+  {category:'탈것', answer:'경찰차', chosung:'ㄱ ㅊ ㅊ', hint:'경찰관이 타고 다니는 차예요'},
+  {category:'탈것', answer:'포클레인', chosung:'ㅍ ㅋ ㄹ ㅇ', hint:'땅을 파는 건설 기계예요'},
+  {category:'탈것', answer:'불도저', chosung:'ㅂ ㄷ ㅈ', hint:'땅을 고르는 건설 기계예요'},
+  {category:'탈것', answer:'크레인', chosung:'ㅋ ㄹ ㅇ', hint:'무거운 물건을 들어올리는 기계예요'},
+  {category:'탈것', answer:'트램', chosung:'ㅌ ㄹ', hint:'도시 거리를 달리는 전차예요'},
+  {category:'탈것', answer:'케이블카', chosung:'ㅋ ㅇ ㅂ ㅋ', hint:'줄에 매달려 산을 오르는 탈것이에요'},
+  {category:'탈것', answer:'모노레일', chosung:'ㅁ ㄴ ㄹ ㅇ', hint:'하나의 레일 위를 달리는 기차예요'},
+  {category:'탈것', answer:'열기구', chosung:'ㅇ ㄱ ㄱ', hint:'뜨거운 공기로 하늘을 날아요'},
+  {category:'탈것', answer:'글라이더', chosung:'ㄱ ㄹ ㅇ ㄷ', hint:'엔진 없이 바람을 타고 나는 비행기예요'},
+  {category:'탈것', answer:'드론', chosung:'ㄷ ㄹ', hint:'사람이 타지 않고 원격으로 조종해요'},
+  {category:'탈것', answer:'썰매', chosung:'ㅆ ㅁ', hint:'눈 위를 미끄러지는 탈것이에요'},
+  {category:'탈것', answer:'스케이트보드', chosung:'ㅅ ㅋ ㅇ ㅌ ㅂ ㄷ', hint:'발판 위에 서서 타는 보드예요'},
+  {category:'탈것', answer:'롤러블레이드', chosung:'ㄹ ㄹ ㅂ ㄹ ㅇ ㄷ', hint:'신발에 바퀴가 달린 탈것이에요'},
+  {category:'탈것', answer:'킥보드', chosung:'ㅋ ㅂ ㄷ', hint:'발로 차서 앞으로 나아가는 탈것이에요'},
+  {category:'탈것', answer:'카누', chosung:'ㅋ ㄴ', hint:'노를 저어 물 위를 가는 작은 배예요'},
+  {category:'탈것', answer:'카약', chosung:'ㅋ ㅇ', hint:'좁은 배를 노로 저어 가요'},
+  {category:'탈것', answer:'요트', chosung:'ㅇ ㅌ', hint:'돛을 달아 바람으로 가는 배예요'},
+  {category:'탈것', answer:'페리', chosung:'ㅍ ㄹ', hint:'사람과 차를 실어 나르는 큰 배예요'},
+  {category:'탈것', answer:'고속버스', chosung:'ㄱ ㅅ ㅂ ㅅ', hint:'고속도로를 빠르게 달리는 큰 버스예요'},
+  {category:'탈것', answer:'리무진', chosung:'ㄹ ㅁ ㅈ', hint:'아주 길고 고급스러운 자동차예요'},
+  {category:'탈것', answer:'트레일러', chosung:'ㅌ ㄹ ㅇ ㄹ', hint:'짐칸을 끌고 다니는 대형 트럭이에요'},
+  {category:'탈것', answer:'스쿠터', chosung:'ㅅ ㅋ ㅌ', hint:'발판이 있는 소형 오토바이예요'},
+  {category:'탈것', answer:'트랙터', chosung:'ㅌ ㄹ ㅌ', hint:'농사지을 때 쓰는 큰 농기계예요'},
+  {category:'탈것', answer:'콤바인', chosung:'ㅋ ㅂ ㅇ', hint:'곡식을 수확하는 농기계예요'},
+  {category:'탈것', answer:'경비행기', chosung:'ㄱ ㅂ ㅎ ㄱ', hint:'작고 가벼운 소형 비행기예요'},
+  {category:'탈것', answer:'수상비행기', chosung:'ㅅ ㅅ ㅂ ㅎ ㄱ', hint:'물 위에서 이착륙하는 비행기예요'},
+  {category:'탈것', answer:'전투기', chosung:'ㅈ ㅌ ㄱ', hint:'군대에서 쓰는 빠른 군용 비행기예요'},
+  {category:'탈것', answer:'항공모함', chosung:'ㅎ ㄱ ㅁ ㅎ', hint:'비행기가 뜨고 내릴 수 있는 큰 군함이에요'},
+  {category:'탈것', answer:'쇄빙선', chosung:'ㅅ ㅂ ㅅ', hint:'얼음을 깨며 나아가는 배예요'},
+  {category:'탈것', answer:'호버크래프트', chosung:'ㅎ ㅂ ㅋ ㄹ ㅍ ㅌ', hint:'공기를 내뿜으며 물이나 땅 위를 달려요'},
+  {category:'탈것', answer:'수중익선', chosung:'ㅅ ㅈ ㅇ ㅅ', hint:'물 위를 빠르게 달리는 날개 달린 배예요'},
+  {category:'탈것', answer:'인력거', chosung:'ㅇ ㄹ ㄱ', hint:'사람이 끄는 수레예요'},
+  {category:'탈것', answer:'마차', chosung:'ㅁ ㅊ', hint:'말이 끄는 수레예요'},
+  {category:'탈것', answer:'자이로스쿠터', chosung:'ㅈ ㅇ ㄹ ㅅ ㅋ ㅌ', hint:'두 바퀴로 균형을 잡아 타는 탈것이에요'},
+  {category:'장소', answer:'도서관', chosung:'ㄷ ㅅ ㄱ', hint:'책을 읽고 빌릴 수 있는 곳이에요'},
+  {category:'장소', answer:'놀이터', chosung:'ㄴ ㅇ ㅌ', hint:'미끄럼틀과 그네가 있는 곳이에요'},
+  {category:'장소', answer:'수영장', chosung:'ㅅ ㅇ ㅈ', hint:'물에서 수영을 즐기는 곳이에요'},
+  {category:'장소', answer:'동물원', chosung:'ㄷ ㅁ ㅇ', hint:'여러 동물을 구경할 수 있는 곳이에요'},
+  {category:'장소', answer:'박물관', chosung:'ㅂ ㅁ ㄱ', hint:'역사적인 물건들을 전시해 놓은 곳이에요'},
+  {category:'장소', answer:'미술관', chosung:'ㅁ ㅅ ㄱ', hint:'그림과 조각품을 감상하는 곳이에요'},
+  {category:'장소', answer:'병원', chosung:'ㅂ ㅇ', hint:'아플 때 치료를 받는 곳이에요'},
+  {category:'장소', answer:'학교', chosung:'ㅎ ㄱ', hint:'공부를 하고 친구를 만나는 곳이에요'},
+  {category:'장소', answer:'유치원', chosung:'ㅇ ㅊ ㅇ', hint:'어린이들이 처음 다니는 학교예요'},
+  {category:'장소', answer:'마트', chosung:'ㅁ ㅌ', hint:'여러 가지 물건을 사는 큰 가게예요'},
+  {category:'장소', answer:'백화점', chosung:'ㅂ ㅎ ㅈ', hint:'여러 층에 다양한 가게가 있는 큰 건물이에요'},
+  {category:'장소', answer:'시장', chosung:'ㅅ ㅈ', hint:'여러 상점이 모여 물건을 파는 곳이에요'},
+  {category:'장소', answer:'공항', chosung:'ㄱ ㅎ', hint:'비행기를 타고 내리는 곳이에요'},
+  {category:'장소', answer:'기차역', chosung:'ㄱ ㅊ ㅇ', hint:'기차를 타고 내리는 곳이에요'},
+  {category:'장소', answer:'버스터미널', chosung:'ㅂ ㅅ ㅌ ㅁ ㄴ', hint:'장거리 버스를 타는 곳이에요'},
+  {category:'장소', answer:'항구', chosung:'ㅎ ㄱ', hint:'배가 드나드는 곳이에요'},
+  {category:'장소', answer:'공원', chosung:'ㄱ ㅇ', hint:'산책하고 쉬는 야외 공간이에요'},
+  {category:'장소', answer:'놀이공원', chosung:'ㄴ ㅇ ㄱ ㅇ', hint:'롤러코스터 등 놀이기구가 있는 곳이에요'},
+  {category:'장소', answer:'영화관', chosung:'ㅇ ㅎ ㄱ', hint:'큰 화면으로 영화를 보는 곳이에요'},
+  {category:'장소', answer:'극장', chosung:'ㄱ ㅈ', hint:'연극이나 뮤지컬을 공연하는 곳이에요'},
+  {category:'장소', answer:'체육관', chosung:'ㅊ ㅇ ㄱ', hint:'실내에서 운동하는 곳이에요'},
+  {category:'장소', answer:'경기장', chosung:'ㄱ ㄱ ㅈ', hint:'스포츠 경기를 하고 관람하는 곳이에요'},
+  {category:'장소', answer:'수족관', chosung:'ㅅ ㅈ ㄱ', hint:'물고기와 해양 생물을 구경하는 곳이에요'},
+  {category:'장소', answer:'식물원', chosung:'ㅅ ㅁ ㅇ', hint:'다양한 식물을 구경하는 곳이에요'},
+  {category:'장소', answer:'천문대', chosung:'ㅊ ㅁ ㄷ', hint:'망원경으로 별을 관찰하는 곳이에요'},
+  {category:'장소', answer:'과학관', chosung:'ㄱ ㅎ ㄱ', hint:'과학 실험과 전시를 즐기는 곳이에요'},
+  {category:'장소', answer:'소방서', chosung:'ㅅ ㅂ ㅅ', hint:'소방관과 소방차가 있는 곳이에요'},
+  {category:'장소', answer:'경찰서', chosung:'ㄱ ㅊ ㅅ', hint:'경찰관이 일하는 곳이에요'},
+  {category:'장소', answer:'우체국', chosung:'ㅇ ㅊ ㄱ', hint:'편지와 소포를 보내는 곳이에요'},
+  {category:'장소', answer:'은행', chosung:'ㅇ ㅎ', hint:'돈을 맡기고 찾는 곳이에요'},
+  {category:'장소', answer:'약국', chosung:'ㅇ ㄱ', hint:'약을 사는 곳이에요'},
+  {category:'장소', answer:'빵집', chosung:'ㅃ ㅈ', hint:'맛있는 빵을 구워 파는 곳이에요'},
+  {category:'장소', answer:'꽃집', chosung:'ㄲ ㅈ', hint:'예쁜 꽃을 파는 곳이에요'},
+  {category:'장소', answer:'미용실', chosung:'ㅁ ㅇ ㅅ', hint:'머리를 자르고 다듬는 곳이에요'},
+  {category:'장소', answer:'세탁소', chosung:'ㅅ ㅌ ㅅ', hint:'옷을 깨끗하게 세탁해주는 곳이에요'},
+  {category:'장소', answer:'주유소', chosung:'ㅈ ㅇ ㅅ', hint:'자동차에 기름을 넣는 곳이에요'},
+  {category:'장소', answer:'캠핑장', chosung:'ㅋ ㅍ ㅈ', hint:'텐트를 치고 야외에서 자는 곳이에요'},
+  {category:'장소', answer:'해수욕장', chosung:'ㅎ ㅅ ㅇ ㅈ', hint:'바다에서 수영하고 노는 곳이에요'},
+  {category:'장소', answer:'스키장', chosung:'ㅅ ㅋ ㅈ', hint:'눈 위에서 스키를 타는 곳이에요'},
+  {category:'장소', answer:'목장', chosung:'ㅁ ㅈ', hint:'소와 말 등 동물을 기르는 넓은 곳이에요'},
+  {category:'장소', answer:'농장', chosung:'ㄴ ㅈ', hint:'채소와 과일을 키우는 곳이에요'},
+  {category:'장소', answer:'절', chosung:'ㅈ', hint:'불교에서 부처님을 모시는 곳이에요'},
+  {category:'장소', answer:'교회', chosung:'ㄱ ㅎ', hint:'기독교에서 예배를 드리는 곳이에요'},
+  {category:'장소', answer:'성당', chosung:'ㅅ ㄷ', hint:'천주교에서 미사를 드리는 곳이에요'},
+  {category:'장소', answer:'궁궐', chosung:'ㄱ ㄱ', hint:'옛날 왕이 살던 큰 건물이에요'},
+  {category:'장소', answer:'성', chosung:'ㅅ', hint:'옛날 적의 침입을 막기 위해 쌓은 큰 건물이에요'},
+  {category:'장소', answer:'등대', chosung:'ㄷ ㄷ', hint:'바닷가에서 배를 안전하게 안내하는 불빛 탑이에요'},
+  {category:'장소', answer:'댐', chosung:'ㄷ', hint:'강물을 막아 물을 저장하는 곳이에요'},
+  {category:'장소', answer:'터널', chosung:'ㅌ ㄴ', hint:'산이나 땅 아래를 뚫어 만든 통로예요'},
+  {category:'장소', answer:'온천', chosung:'ㅇ ㅊ', hint:'따뜻한 물이 솟아나는 목욕 장소예요'},
+];
+
+const BADGE_COLORS = [
+  { name:'빨강',     hex:'#E53935', dark:'#C62828', top:'#EF5350' },
+  { name:'주황',     hex:'#F4511E', dark:'#BF360C', top:'#FF7043' },
+  { name:'노랑',     hex:'#F9A825', dark:'#F57F17', top:'#FBC02D' },
+  { name:'초록',     hex:'#2E7D32', dark:'#1B5E20', top:'#388E3C' },
+  { name:'파랑',     hex:'#1E88E5', dark:'#1565C0', top:'#42A5F5' },
+  { name:'남색',     hex:'#1A237E', dark:'#0D1642', top:'#3949AB' },
+  { name:'보라',     hex:'#6A1B9A', dark:'#4A148C', top:'#8E24AA' },
+  { name:'핑크',     hex:'#E91E63', dark:'#880E4F', top:'#F06292' },
+  { name:'살구',     hex:'#FF8A65', dark:'#D84315', top:'#FFAB91' },
+  { name:'레몬',     hex:'#FFF176', dark:'#F9A825', top:'#FFFF8D' },
+  { name:'민트',     hex:'#4DB6AC', dark:'#00796B', top:'#80CBC4' },
+  { name:'하늘',     hex:'#64B5F6', dark:'#1565C0', top:'#90CAF9' },
+  { name:'라벤더',   hex:'#CE93D8', dark:'#7B1FA2', top:'#E1BEE7' },
+  { name:'코랄',     hex:'#FF7043', dark:'#BF360C', top:'#FF8A65' },
+  { name:'은색',     hex:'#B0BEC5', dark:'#607D8B', top:'#CFD8DC' },
+  { name:'흰색',     hex:'#F5F5F5', dark:'#BDBDBD', top:'#FFFFFF' },
+  { name:'검정',     hex:'#212121', dark:'#000000', top:'#424242' },
+  { name:'베이지',   hex:'#D7CCC8', dark:'#795548', top:'#EFEBE9' },
+  { name:'카키',     hex:'#827717', dark:'#524D00', top:'#AFB42B' },
+  { name:'와인',     hex:'#880E4F', dark:'#4A0026', top:'#AD1457' },
+  { name:'금색',     hex:'#FFA000', dark:'#E65100', top:'#FFB300' },
+  { name:'형광초록', hex:'#00C853', dark:'#007B33', top:'#69F0AE' },
+  { name:'형광노랑', hex:'#FFFF00', dark:'#F9A825', top:'#FFFF8D' },
+  { name:'산호',     hex:'#FF5722', dark:'#BF360C', top:'#FF7043' },
+  { name:'하늘색',   hex:'#40C4FF', dark:'#0091EA', top:'#80D8FF' },
+  { name:'자주',     hex:'#AD1457', dark:'#880E4F', top:'#E91E63' },
+  { name:'올리브',   hex:'#558B2F', dark:'#33691E', top:'#7CB342' },
+  { name:'청록',     hex:'#00897B', dark:'#004D40', top:'#26A69A' },
+  { name:'골드',     hex:'#FFD700', dark:'#F9A825', top:'#FFE57F' },
+  { name:'실버',     hex:'#90A4AE', dark:'#455A64', top:'#B0BEC5' },
+  { name:'로즈핑크', hex:'#F48FB1', dark:'#C2185B', top:'#F8BBD0' },
+  { name:'펄',       hex:'#E8EAF6', dark:'#9FA8DA', top:'#F5F5FF' },
+  { name:'브론즈',   hex:'#A1887F', dark:'#4E342E', top:'#BCAAA4' },
+  { name:'플래티넘', hex:'#E0E0E0', dark:'#9E9E9E', top:'#F5F5F5' },
+  { name:'다이아',   hex:'#B3E5FC', dark:'#0288D1', top:'#E1F5FE' },
+  { name:'벚꽃',     hex:'#FFB7C5', dark:'#E91E63', top:'#FFCDD2' },
+  { name:'코발트',   hex:'#1565C0', dark:'#0D47A1', top:'#1976D2' },
+  { name:'단풍',     hex:'#BF360C', dark:'#870000', top:'#E64A19' },
+  { name:'눈꽃',     hex:'#E3F2FD', dark:'#90CAF9', top:'#F5F5F5' },
+  { name:'물빛',     hex:'#80DEEA', dark:'#00838F', top:'#B2EBF2' },
+  { name:'햇살',     hex:'#FFF59D', dark:'#F9A825', top:'#FFFDE7' },
+  { name:'인디고',   hex:'#3949AB', dark:'#1A237E', top:'#5C6BC0' },
+  { name:'딥핑크',   hex:'#F50057', dark:'#880E4F', top:'#FF4081' },
+  { name:'청옥',     hex:'#006064', dark:'#002F36', top:'#00838F' },
+  { name:'다크오렌지',hex:'#E64A19', dark:'#BF360C', top:'#FF5722' },
+  { name:'슬레이트', hex:'#546E7A', dark:'#263238', top:'#78909C' },
+  { name:'포레스트', hex:'#00695C', dark:'#004D40', top:'#00897B' },
+  { name:'크림슨',   hex:'#B71C1C', dark:'#7F0000', top:'#C62828' },
+  { name:'무지개',   hex:'#FF1744', dark:'#6A1B9A', top:'#FF4081', isRainbow: true },
+];
+
+/* ─── LOCALSTORAGE ── */
+const LS_KEY = 'ddokddok_v1';
+function getTodayStr() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
+function loadStorage() { try { const r = localStorage.getItem(LS_KEY); return r ? JSON.parse(r) : null; } catch(e) { return null; } }
+function saveStorage(d) {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(d));
+  } catch(e) {
+    // 저장 실패 시 조용히 무시 (시크릿 모드 등)
+    console.warn('저장 실패: 진행 기록이 유지되지 않을 수 있어요.', e);
+  }
+}
+function initStorage() {
+  const today = getTodayStr();
+  let d = loadStorage();
+  if (!d) { d = { totalUnlocked:0, lastUnlockDate:null, todayDate:today, todayCorrect:0, todayCollected:[], todayScore:0 }; saveStorage(d); return d; }
+  if (d.todayDate !== today) { d.todayDate=today; d.todayCorrect=0; d.todayCollected=[]; d.todayScore=0; saveStorage(d); }
+  return d;
+}
+
+/* ─── STATE ── */
+let selectedCat=null, activeCat=null, currentQ=null, canDropped=false, answered=false;
+let askedQuestions = new Set(); // 세션 내 출제된 문제 answer 추적
+let wrongQuestions = new Set(); // 틀린 문제 추적
+let appData = initStorage();
+
+/* ─── UTILS ── */
+function getCatInfo(id) { return CATEGORIES.find(c=>c.id===id); }
+function shuffle(arr) { return [...arr].sort(()=>Math.random()-0.5); }
+function getColorVar(id) {
+  const m = {'동물':'#4CAF82','음식':'#FF8C42','동화':'#9B6FD4','색깔':'#F06292','탈것':'#4A90D9','장소':'#F5C842'};
+  return m[id]||'#888';
+}
+function adjustBrightness(hex, amt) {
+  let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  r=Math.max(0,Math.min(255,r+amt)); g=Math.max(0,Math.min(255,g+amt)); b=Math.max(0,Math.min(255,b+amt));
+  return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+function buildChoices(correct, cat) {
+  const pool = QUESTIONS.filter(q=>q.answer!==correct);
+  // 답 기준 중복 제거
+  const unique = pool.filter((q,i,arr)=>arr.findIndex(x=>x.answer===q.answer)===i);
+  const combined = shuffle([...unique.filter(q=>q.category===cat),...unique.filter(q=>q.category!==cat)]);
+  return shuffle([correct,...combined.slice(0,3).map(q=>q.answer)]);
+}
+
+/* ─── CAN SVG ── */
+function makeSvgCan(hex, dark, top, size=26, label='', locked=false, isRainbow=false) {
+  const w=size, h=Math.round(size*2.0);
+  const ry=Math.round(size*0.125);
+  const bodyY=Math.round(h*0.12);
+  const bodyH=Math.round(h*0.88)-bodyY;
+  const hilW=Math.round(size*0.18), hilH=Math.round(h*0.42);
+  const hilX=Math.round(size*0.14), hilY=Math.round(h*0.28);
+  const cx=w/2;
+  // 하단만 둥근 path 계산
+  const bR=Math.round(size*0.28); // 하단 radius
+  const bY=bodyY; const bH=bodyH;
+  const bBot=bY+bH;
+  // 하단만 둥근 path: 상단 직각, 하단 둥글게
+  const bodyPath=`M 0,${bY} L ${w},${bY} L ${w},${bBot-bR} Q ${w},${bBot} ${w-bR},${bBot} L ${bR},${bBot} Q 0,${bBot} 0,${bBot-bR} Z`;
+  const clipId=`cc${size}${Math.round(Math.random()*9999)}`;
+
+  if (locked) {
+    return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+      <defs><clipPath id="${clipId}"><path d="${bodyPath}"/></clipPath></defs>
+      <path d="${bodyPath}" fill="#CFD8DC"/>
+      <ellipse cx="${cx}" cy="${bodyY}" rx="${cx}" ry="${ry}" fill="#ECEFF1"/>
+      <rect x="${hilX}" y="${hilY}" width="${hilW}" height="${hilH}" rx="${Math.round(hilW/2)}" fill="rgba(255,255,255,0.28)" clip-path="url(#${clipId})"/>
+      <text x="${cx}" y="${Math.round(h*0.68)}" text-anchor="middle" font-size="${Math.round(size*0.38)}" dominant-baseline="middle">🔒</text>
+    </svg>`;
+  }
+
+  const gId=`rg${size}_${Math.round(Math.random()*9999)}`;
+  let bodyFill=`fill="url(#${gId})"`;
+  let gradDef='';
+
+  if (isRainbow) {
+    gradDef=`<linearGradient id="${gId}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#E53935"/><stop offset="25%" stop-color="#F9A825"/><stop offset="50%" stop-color="#2E7D32"/><stop offset="75%" stop-color="#1565C0"/><stop offset="100%" stop-color="#6A1B9A"/></linearGradient>`;
+  } else {
+    gradDef=`<linearGradient id="${gId}" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="${dark}"/><stop offset="20%" stop-color="${hex}"/><stop offset="45%" stop-color="${top}"/><stop offset="55%" stop-color="${top}"/><stop offset="80%" stop-color="${hex}"/><stop offset="100%" stop-color="${dark}"/></linearGradient>`;
+  }
+
+  const lightHex=['#F9A825','#FFF176','#FFF9C4','#E3F2FD','#B3E5FC','#FFEA00','#FFD600','#CCFF90','#76FF03','#B2FF59','#FFFF8D','#80D8FF','#40C4FF','#FFAB91','#E0E0E0','#F5F5F5','#EFEBE9','#D7CCC8','#F8BBD0','#F48FB1','#E1BEE7','#CE93D8','#90CAF9','#64B5F6','#F5F5F5','#FFFFFF','#FFFF00','#FFB7C5','#FFCDD2','#E8EAF6','#F5F5FF','#FFF59D','#FFFDE7','#FFE57F','#80DEEA','#B2EBF2'];
+  const nameColor=(isRainbow||lightHex.includes(hex))?'#5a4000':'#fff';
+  const fs=Math.max(6,Math.round(size*0.22));
+  const ny=Math.round(h*0.62);
+  const shId=`sh${size}_${Math.round(Math.random()*9999)}`;
+
+  return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      ${gradDef}
+      <linearGradient id="${shId}" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="rgba(255,255,255,0)"/>
+        <stop offset="35%" stop-color="rgba(255,255,255,0.22)"/>
+        <stop offset="55%" stop-color="rgba(255,255,255,0)"/>
+      </linearGradient>
+      <clipPath id="${clipId}"><path d="${bodyPath}"/></clipPath>
+    </defs>
+    <path d="${bodyPath}" ${bodyFill}/>
+    <path d="${bodyPath}" fill="url(#${shId})"/>
+    <path d="M 0,${bBot-bR*0.7} L ${w},${bBot-bR*0.7} L ${w},${bBot-bR} Q ${w},${bBot} ${w-bR},${bBot} L ${bR},${bBot} Q 0,${bBot} 0,${bBot-bR} Z" fill="rgba(0,0,0,0.12)"/>
+    <ellipse cx="${cx}" cy="${bodyY}" rx="${cx}" ry="${ry}" fill="${top}"/>
+    <ellipse cx="${cx}" cy="${bodyY}" rx="${cx}" ry="${ry}" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="0.8"/>
+    <rect x="${hilX}" y="${hilY}" width="${hilW}" height="${hilH}" rx="${Math.round(hilW/2)}" fill="rgba(255,255,255,0.2)" clip-path="url(#${clipId})"/>
+    <rect x="${Math.round(hilX+hilW+Math.round(size*0.06))}" y="${hilY}" width="${Math.round(hilW*0.5)}" height="${Math.round(hilH*0.6)}" rx="${Math.round(hilW/4)}" fill="rgba(255,255,255,0.08)" clip-path="url(#${clipId})"/>
+    <ellipse cx="${cx}" cy="${bodyY}" rx="${Math.round(w*0.18)}" ry="${Math.round(ry*0.65)}" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.2"/>
+    <rect x="${Math.round(cx-w*0.11)}" y="${Math.round(h*0.02)}" width="${Math.round(w*0.22)}" height="${Math.round(h*0.14)}" rx="${Math.round(size*0.14)}" fill="rgba(255,255,255,0.38)"/>
+    ${label?`<text x="${cx}" y="${ny}" text-anchor="middle" font-family="'Noto Sans KR',sans-serif" font-size="${fs}" font-weight="700" fill="${nameColor}">${label}</text>`:''}
+  </svg>`;
+}
+
+/* ─── BUILD CAN GRID ── */
+function buildCanGrid() {
+  const grid = document.getElementById('can-grid');
+  grid.innerHTML = '';
+  const colors = CATEGORIES.filter(c=>c.id!==RANDOM_CAT).map(c=>getColorVar(c.id));
+  // 6가지 색을 섞은 뒤 10개로 순환 (골고루 포함)
+  const shuffled = shuffle(colors);
+  for (let i=0;i<10;i++) {
+    const color = shuffled[i%shuffled.length];
+    const bright = adjustBrightness(color, 25);
+    const dark   = adjustBrightness(color, -40);
+    const div = document.createElement('div');
+    div.className = 'can-in-machine';
+    div.style.background = `linear-gradient(180deg, ${bright} 0%, ${color} 35%, ${dark} 100%)`;
+    div.style.opacity = '0.55';
+    div.dataset.catColor = color;
+    const top = document.createElement('div');
+    top.className = 'can-top';
+    div.appendChild(top);
+    grid.appendChild(div);
+  }
+}
+
+/* ─── BUILD CAT BUTTONS ── */
+function buildCatButtons() {
+  const grid = document.getElementById('cat-grid');
+  const randomBtn = document.getElementById('cat-random-btn');
+  // 동그라미 버튼만 제거
+  grid.querySelectorAll('.cat-circle-btn').forEach(b=>b.remove());
+  CATEGORIES.filter(c=>c.id!==RANDOM_CAT).forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-circle-btn';
+    btn.setAttribute('aria-label', `${cat.id} 카테고리 선택`);
+    btn.dataset.id = cat.id;
+    const color = getColorVar(cat.id);
+    const circle = document.createElement('div');
+    circle.className = 'cat-circle';
+    circle.style.background = `radial-gradient(circle at 40% 35%, ${adjustBrightness(color,30)}, ${color} 60%, ${adjustBrightness(color,-25)})`;
+    circle.textContent = cat.icon;
+    const label = document.createElement('div');
+    label.className = 'cat-circle-label';
+    label.textContent = cat.id;
+    btn.appendChild(circle);
+    btn.appendChild(label);
+    btn.addEventListener('click', ()=>selectCategory(cat.id));
+    grid.appendChild(btn);
+  });
+  randomBtn.addEventListener('click', ()=>selectCategory(RANDOM_CAT));
+}
+
+/* ─── SELECT CATEGORY ── */
+function selectCategory(id) {
+  selectedCat=id; canDropped=false; answered=false;
+  const realCats = CATEGORIES.filter(c=>c.id!==RANDOM_CAT).map(c=>c.id);
+  activeCat = id===RANDOM_CAT ? realCats[Math.floor(Math.random()*realCats.length)] : id;
+  const oldCan1=document.querySelector('.outlet-wrapper .outlet-can');
+  if(oldCan1) oldCan1.remove();
+  const slotEl1=document.getElementById('outlet-slot');
+  slotEl1.classList.remove('has-can');
+  slotEl1.replaceWith(slotEl1.cloneNode(true));
+  document.getElementById('outlet-slot').innerHTML='<span class="outlet-label" style="opacity:1">OUT</span>';
+
+  // 동그라미 버튼 선택 상태
+  document.querySelectorAll('.cat-circle-btn').forEach(btn=>{
+    btn.classList.toggle('selected', btn.dataset.id===id);
+  });
+  // 아무거나 버튼 선택 상태
+  document.getElementById('cat-random-btn').classList.toggle('selected', id===RANDOM_CAT);
+
+  const selColor=getColorVar(activeCat);
+  document.querySelectorAll('.can-in-machine').forEach(can=>{
+    const isMatch=id===RANDOM_CAT||can.dataset.catColor===selColor;
+    can.style.opacity=isMatch?'1':'0.3';
+    can.style.transform=isMatch?'scaleY(1.04)':'scaleY(1)';
+    can.style.filter=isMatch?'brightness(1.08)':'brightness(1)';
+    can.style.transition='opacity 0.25s,transform 0.25s,filter 0.25s';
+  });
+  document.getElementById('coin-btn').disabled=false;
+  // 활성화 시 이스터에그 레이어 투과
+  document.getElementById('coin-tap-layer').style.pointerEvents='none';
+  document.getElementById('hint-text').textContent=id===RANDOM_CAT?'어떤 캔이 나올지 몰라요! 동전을 넣어보세요 🎰':`${id} 카테고리 선택! 동전을 넣어보세요 🪙`;
+}
+
+/* ─── COIN DROP ── */
+document.getElementById('coin-btn').addEventListener('click',()=>{
+  if (!selectedCat || canDropped) return;
+  document.querySelectorAll('.can-in-machine').forEach(can=>{can.classList.remove('shake');void can.offsetWidth;can.classList.add('shake');});
+  document.getElementById('coin-btn').disabled=true;
+  document.getElementById('coin-tap-layer').style.pointerEvents='auto';
+  document.getElementById('hint-text').textContent='캔이 나오고 있어요... 🎰';
+  setTimeout(dropCan,600);
+});
+
+function dropCan() {
+  // 아무거나일 때 activeCat 재결정
+  if (selectedCat === RANDOM_CAT) {
+    const realCats = CATEGORIES.filter(c=>c.id!==RANDOM_CAT).map(c=>c.id);
+    activeCat = realCats[Math.floor(Math.random()*realCats.length)];
+  }
+  const catColor=getColorVar(activeCat), catInfo=getCatInfo(activeCat);
+  const catQ = QUESTIONS.filter(q=>q.category===activeCat);
+
+  // 1순위: 틀린 문제 중 해당 카테고리
+  let pool = catQ.filter(q=>wrongQuestions.has(q.answer));
+  // 2순위: 아직 안 나온 문제
+  if (pool.length === 0) pool = catQ.filter(q=>!askedQuestions.has(q.answer));
+  // 3순위: 전부 소진 시 리셋 후 전체
+  if (pool.length === 0) {
+    catQ.forEach(q=>askedQuestions.delete(q.answer));
+    pool = catQ;
+  }
+  currentQ = pool[Math.floor(Math.random()*pool.length)];
+  askedQuestions.add(currentQ.answer);
+  wrongQuestions.delete(currentQ.answer); // 재출제됐으니 틀린 목록에서 제거
+  // 캔은 wrapper에 붙여서 overflow:visible 효과 활용
+  const wrapper=document.querySelector('.outlet-wrapper');
+  const slot=document.getElementById('outlet-slot');
+  // 기존 캔 제거
+  const oldCan=wrapper.querySelector('.outlet-can');
+  if(oldCan) oldCan.remove();
+  slot.innerHTML='<span class="outlet-label">OUT</span>';
+  const isRandom=selectedCat===RANDOM_CAT;
+  const can=document.createElement('div');
+  can.className='outlet-can drop';
+  if (isRandom) {
+    can.style.background='linear-gradient(180deg,#E53935 0%,#FF8C42 20%,#F9A825 40%,#4CAF82 60%,#4A90D9 80%,#9B6FD4 100%)';
+    can.innerHTML='<span style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.5),0 0 8px rgba(0,0,0,0.3);">?</span>';
+  } else {
+    can.style.background=`linear-gradient(160deg,${catColor},${adjustBrightness(catColor,-25)})`;
+    can.innerHTML=catInfo.icon;
+  }
+  can.setAttribute('role','button'); can.setAttribute('aria-label','캔을 눌러 문제를 열어보세요'); can.setAttribute('tabindex','0');
+  wrapper.appendChild(can);
+  // 캔 떨어지면 OUT 텍스트 숨기기
+  setTimeout(()=>{
+    const label=slot.querySelector('.outlet-label');
+    if(label) label.style.opacity='0';
+  }, 300);
+  slot.classList.add('has-can');
+  canDropped=true;
+  document.getElementById('hint-text').textContent='캔을 눌러서 문제를 열어보세요! 👆';
+  can.addEventListener('click', openQuiz);
+  can.addEventListener('keydown', e=>{if(e.key==='Enter'||e.key===' ')openQuiz();});
+  // 슬롯 전체를 클릭 영역으로
+  slot.addEventListener('click', openQuiz);
+}
+
+/* ─── OPEN QUIZ ── */
+function openQuiz() {
+  if (!currentQ||answered) return;
+  const catInfo=getCatInfo(activeCat), catColor=getColorVar(activeCat), choices=buildChoices(currentQ.answer,activeCat);
+  document.getElementById('modal-content').innerHTML=`
+    <div class="quiz-cat-label" style="background:${catColor}">${catInfo.icon} ${selectedCat}</div>
+    <div class="chosung-display">${currentQ.chosung}</div>
+    <div class="hint-display">💡 ${currentQ.hint}</div>
+    <div class="choices-grid" id="choices-grid">
+      ${choices.map(c=>`<button class="choice-btn" data-answer="${c}" aria-label="${c} 선택">${c}</button>`).join('')}
+    </div>`;
+  document.querySelectorAll('#choices-grid .choice-btn').forEach(btn=>btn.addEventListener('click',()=>checkAnswer(btn.dataset.answer)));
+  showOverlay();
+}
+
+/* ─── CHECK ANSWER ── */
+function checkAnswer(chosen) {
+  if (answered) return;
+  answered=true;
+  document.querySelectorAll('#choices-grid .choice-btn').forEach(btn=>{
+    btn.disabled=true;
+    if (btn.dataset.answer===currentQ.answer) btn.classList.add('correct');
+    else if (btn.dataset.answer===chosen) btn.classList.add('wrong');
+  });
+  setTimeout(()=>showResult(chosen===currentQ.answer),700);
+}
+
+/* ─── SHOW RESULT ── */
+function showResult(isCorrect) {
+  const catInfo=getCatInfo(activeCat), catColor=getColorVar(activeCat);
+  const content=document.getElementById('modal-content');
+  if (isCorrect) {
+    appData.todayCorrect++;
+    appData.todayCollected.push({name:currentQ.answer,icon:catInfo.icon,color:catColor});
+    let newBadge=null;
+    if (appData.todayCorrect>=10 && appData.lastUnlockDate!==getTodayStr() && appData.totalUnlocked<BADGE_COLORS.length) {
+      newBadge=BADGE_COLORS[appData.totalUnlocked];
+      appData.totalUnlocked++; appData.lastUnlockDate=getTodayStr();
+      document.getElementById('badge-dot').classList.add('show');
+    }
+    saveStorage(appData); updateCollection(); shootStars();
+    const remainMsg = appData.todayCorrect<10
+      ? `<div style="font-size:12px;color:var(--text-sub);text-align:center;margin-bottom:16px;">색깔 캔 획득까지 ${10-appData.todayCorrect}문제 남았어요 🔓</div>`
+      : '';
+    content.innerHTML=`
+      <div class="result-icon">🎉</div>
+      <div class="result-title">띵동! 정답이야!</div>
+      <div class="result-sub">오늘 ${appData.todayCorrect}문제 맞혔어요!</div>
+      <div style="text-align:center;margin-bottom:20px;">
+        ${newBadge
+          ? `<span class="result-can-label" style="background:${newBadge.hex};color:#fff;">🥫 ${newBadge.name} 색깔 캔 획득!</span>`
+          : `<span class="result-can-label" style="background:${catColor};color:#fff;">${catInfo.icon} ${currentQ.answer} 캔 GET!</span>`}
+      </div>
+      ${remainMsg}
+      <button class="next-btn" id="next-btn">다음 문제 뽑기 🪙</button>`;
+  } else {
+    wrongQuestions.add(currentQ.answer); // 틀린 문제 기록
+    saveStorage(appData);
+    content.innerHTML=`
+      <div class="result-icon">🤔</div>
+      <div class="result-title">아쉽다! 괜찮아요!</div>
+      <div class="result-sub">정답은 바로 <strong style="color:${catColor}">${currentQ.answer}</strong> 이었어요!</div>
+      <div style="text-align:center;font-size:13px;color:var(--text-sub);margin-bottom:24px;">다음엔 꼭 맞힐 수 있어요 💪</div>
+      <button class="next-btn" id="next-btn">다음 문제 뽑기 🪙</button>`;
+  }
+  document.getElementById('next-btn').addEventListener('click',()=>{hideOverlay();resetForNext();});
+}
+
+/* ─── RESET ── */
+function resetForNext() {
+  canDropped=false; answered=false; currentQ=null;
+  selectedCat=null; activeCat=null;
+
+  // 카테고리 버튼 선택 해제
+  document.querySelectorAll('.cat-circle-btn').forEach(btn=>btn.classList.remove('selected'));
+  document.getElementById('cat-random-btn').classList.remove('selected');
+
+  // 캔 진열창 원래 상태로 (모든 캔 흐리게)
+  document.querySelectorAll('.can-in-machine').forEach(can=>{
+    can.style.opacity='0.55';
+    can.style.transform='scaleY(1)';
+    can.style.filter='brightness(1)';
+    can.style.transition='opacity 0.25s,transform 0.25s,filter 0.25s';
+  });
+
+  const oldCan=document.querySelector('.outlet-wrapper .outlet-can');
+  if(oldCan) oldCan.remove();
+  const slotEl=document.getElementById('outlet-slot');
+  slotEl.classList.remove('has-can');
+  slotEl.replaceWith(slotEl.cloneNode(true));
+  document.getElementById('outlet-slot').innerHTML='<span class="outlet-label" style="opacity:1">OUT</span>';
+  document.getElementById('coin-btn').disabled=true;
+  document.getElementById('coin-tap-layer').style.pointerEvents='auto';
+  document.getElementById('hint-text').textContent='카테고리를 고르고 동전을 넣어보세요!';
+}
+
+/* ─── OVERLAY ── */
+function showOverlay() {
+  const ov=document.getElementById('overlay');
+  ov.classList.add('show');
+  ov.addEventListener('click',overlayBgClose);
+}
+function hideOverlay() {
+  const ov=document.getElementById('overlay');
+  ov.classList.remove('show');
+  ov.removeEventListener('click',overlayBgClose);
+}
+function overlayBgClose(e) { if(e.target===document.getElementById('overlay')&&answered) hideOverlay(); }
+
+/* ─── COLLECTION ── */
+function updateCollection() {
+  const wrap=document.getElementById('collection-items');
+  const preview=document.getElementById('collection-preview');
+  wrap.innerHTML='';
+  preview.innerHTML='';
+  const list=appData.todayCollected;
+  if (!list||list.length===0) {
+    wrap.innerHTML='<div class="empty-collection">아직 모은 캔이 없어요.</div>';
+    return;
+  }
+  // 본문
+  list.forEach(c=>{ const tag=document.createElement('div'); tag.className='collected-can'; tag.style.background=c.color; tag.innerHTML=`${c.icon} ${c.name}`; wrap.appendChild(tag); });
+  // 미리보기: 최대 3개 아이콘 + 나머지 개수
+  const maxShow = 3;
+  list.slice(0, maxShow).forEach(c=>{
+    const span=document.createElement('span'); span.className='preview-can'; span.textContent=c.icon; preview.appendChild(span);
+  });
+  if (list.length > maxShow) {
+    const more=document.createElement('span'); more.className='preview-more'; more.textContent=`+${list.length-maxShow}개`; preview.appendChild(more);
+  }
+}
+
+/* ─── ACCORDION ── */
+document.getElementById('collection-header').addEventListener('click', ()=>{
+  const body=document.getElementById('collection-body');
+  const arrow=document.getElementById('collection-arrow');
+  const header=document.getElementById('collection-header');
+  const isOpen=body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  arrow.classList.toggle('open', !isOpen);
+  header.setAttribute('aria-expanded', String(!isOpen));
+});
+
+/* ─── BADGE PANEL ── */
+function buildBadgeGrid() {
+  const grid=document.getElementById('badge-grid');
+  grid.innerHTML='';
+  const unlocked=appData.totalUnlocked;
+  BADGE_COLORS.forEach((badge,i)=>{
+    const isUnlocked=i<unlocked;
+    const item=document.createElement('div'); item.className='badge-item';
+    const wrap=document.createElement('div'); wrap.className='badge-can-wrap';
+    if (isUnlocked) wrap.classList.add('badge-unlock-anim');
+    wrap.innerHTML=isUnlocked
+      ? makeSvgCan(badge.hex,badge.dark,badge.top,26,'',false,badge.isRainbow)
+      : makeSvgCan('','','',26,'',true);
+    const nameEl=document.createElement('div');
+    nameEl.className=isUnlocked?'badge-can-name unlocked':'badge-can-name';
+    nameEl.textContent=isUnlocked?badge.name:'';
+    item.appendChild(wrap); item.appendChild(nameEl); grid.appendChild(item);
+  });
+  document.getElementById('badge-sub').textContent='하루 10문제를 풀면 색깔 캔이 1개씩 생겨요!';
+  const remaining=10-appData.todayCorrect;
+  document.getElementById('badge-today-info').innerHTML=
+    appData.lastUnlockDate===getTodayStr()
+      ? '✅ 오늘 색깔 캔을 이미 획득했어요! 내일 또 도전해봐요.'
+      : remaining>0
+        ? `🔓 오늘 ${appData.todayCorrect}문제 맞힘 · ${remaining}문제 더 풀면 색깔 캔이 생겨요!`
+        : '🎉 오늘 10문제 달성! 새 색깔 캔이 생겼어요!';
+}
+
+document.getElementById('badge-btn').addEventListener('click',()=>{
+  document.getElementById('badge-dot').classList.remove('show');
+  buildBadgeGrid();
+  const ov=document.getElementById('badge-overlay');
+  ov.classList.add('show');
+  ov.addEventListener('click', badgeBgClose, { once: true });
+});
+document.getElementById('badge-close').addEventListener('click',()=>{ document.getElementById('badge-overlay').classList.remove('show'); });
+function badgeBgClose(e) { if(e.target===document.getElementById('badge-overlay')) document.getElementById('badge-overlay').classList.remove('show'); }
+
+/* ─── STAR BURST ── */
+function shootStars() {
+  const container=document.getElementById('star-burst');
+  const cx=window.innerWidth/2, cy=window.innerHeight/2;
+  const emojis=['⭐','🌟','✨','💫','🎊','🎉'];
+  for (let i=0;i<14;i++) {
+    const el=document.createElement('div'); el.className='star-particle'; el.textContent=emojis[i%emojis.length];
+    const angle=(i/14)*2*Math.PI, dist=80+Math.random()*120;
+    el.style.setProperty('--dx',`${Math.cos(angle)*dist}px`); el.style.setProperty('--dy',`${Math.sin(angle)*dist}px`);
+    el.style.left=cx+'px'; el.style.top=cy+'px'; el.style.animationDelay=`${Math.random()*0.2}s`;
+    container.appendChild(el); setTimeout(()=>el.remove(),1100);
+  }
+}
+
+/* ─── BG EMOJI ── */
+function initBgEmoji() {
+  const layer = document.getElementById('bg-emoji-layer');
+  const allEmojis = ['🥫','🪙','⭐','✨','🎉','💫','🎊','🎰'];
+  const emojis = allEmojis.sort(()=>Math.random()-0.5).slice(0,4);
+  const count = 4;
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
+
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'bg-emoji';
+    el.textContent = emojis[i % emojis.length];
+    el.style.fontSize = '18px';
+
+    const side = Math.floor(Math.random() * 4);
+    let startX, startY, tx, ty;
+
+    if (side === 0) {
+      startX = Math.random() * vw; startY = -30;
+      tx = (Math.random() - 0.5) * 150; ty = vh + 60;
+    } else if (side === 1) {
+      startX = Math.random() * vw; startY = vh + 30;
+      tx = (Math.random() - 0.5) * 150; ty = -(vh + 60);
+    } else if (side === 2) {
+      startX = -30; startY = Math.random() * vh;
+      tx = vw + 60; ty = (Math.random() - 0.5) * 150;
+    } else {
+      startX = vw + 30; startY = Math.random() * vh;
+      tx = -(vw + 60); ty = (Math.random() - 0.5) * 150;
+    }
+
+    el.style.left = startX + 'px';
+    el.style.top  = startY + 'px';
+    el.style.setProperty('--tx', tx + 'px');
+    el.style.setProperty('--ty', ty + 'px');
+    el.style.setProperty('--rot', (Math.random() * 180 - 90) + 'deg');
+
+    const duration = 20 + Math.random() * 15; // 20~35초로 매우 천천히
+    el.style.animationDuration = duration + 's';
+    el.style.animationDelay = -(Math.random() * duration) + 's';
+
+    layer.appendChild(el);
+  }
+}
+
+/* ─── EASTER EGGS ── */
+function showEaster(id) {
+  const ov = document.getElementById(id);
+  const card = document.getElementById(id+'-card');
+  ov.classList.add('show');
+  const emojis = ['⭐','✨','💫','🎉','🎊','💝'];
+  for (let i = 0; i < 12; i++) {
+    const el = document.createElement('div');
+    el.className = 'easter-particle';
+    el.textContent = emojis[i % emojis.length];
+    const angle = (i / 12) * 2 * Math.PI;
+    const dist = 60 + Math.random() * 80;
+    el.style.setProperty('--edx', `${Math.cos(angle)*dist}px`);
+    el.style.setProperty('--edy', `${Math.sin(angle)*dist}px`);
+    el.style.setProperty('--erot', `${Math.random()*360}deg`);
+    el.style.left = '50%'; el.style.top = '50%';
+    el.style.animationDelay = `${Math.random()*0.3}s`;
+    card.appendChild(el);
+    setTimeout(()=>el.remove(), 1500);
+  }
+  // 3초 후 자동 닫힘 (이벤트 중복 방지: once 옵션)
+  setTimeout(()=>ov.classList.remove('show'), 3000);
+  ov.addEventListener('click', ()=>ov.classList.remove('show'), { once: true });
+}
+
+// 이스터에그 1: 타이틀 3번 탭
+let titleTapCount = 0, titleTapTimer = null;
+document.querySelector('.logo').addEventListener('click', ()=>{
+  titleTapCount++;
+  clearTimeout(titleTapTimer);
+  titleTapTimer = setTimeout(()=>{ titleTapCount=0; }, 1000);
+  if (titleTapCount >= 3) { titleTapCount=0; showEaster('easter1'); }
+});
+
+// 이스터에그 2: 동전 넣기 버튼 3번 탭
+let coinTapCount = 0, coinTapTimer = null;
+document.getElementById('coin-tap-layer').addEventListener('click', ()=>{
+  // 이스터에그 카운트
+  coinTapCount++;
+  clearTimeout(coinTapTimer);
+  coinTapTimer = setTimeout(()=>{ coinTapCount=0; }, 1500);
+  if (coinTapCount >= 3) { coinTapCount=0; showEaster('easter2'); return; }
+  // 카테고리 미선택 안내 (버튼 비활성화 상태일 때)
+  if (!selectedCat) {
+    const hint = document.getElementById('hint-text');
+    hint.textContent = '먼저 카테고리를 골라보세요! 👆';
+    hint.style.color = '#FFD740';
+    hint.style.animation = 'none';
+    void hint.offsetWidth;
+    hint.style.animation = 'hintShake 0.4s ease-in-out';
+    setTimeout(()=>{ hint.style.color=''; hint.textContent='카테고리를 고르고 동전을 넣어보세요!'; }, 2000);
+  }
+});
+
+/* ─── INIT ── */
+buildCanGrid();
+buildCatButtons();
+updateCollection();
+initBgEmoji();
+// coin-tap-layer 초기 상태 명시
+document.getElementById('coin-tap-layer').style.pointerEvents = 'auto';
+// 첫 로드 시 컬렉션 캔 흔들림 힌트
+setTimeout(()=>{
+  const can = document.getElementById('badge-btn-can');
+  if(can){
+    // SVG 강제 렌더링 (첫 깜빡임 방지)
+    can.style.opacity = '0.99';
+    requestAnimationFrame(()=>{
+      can.style.opacity = '1';
+      setTimeout(()=>{ can.classList.add('wiggle'); setTimeout(()=>can.classList.remove('wiggle'), 700); }, 50);
+    });
+  }
+}, 1500);
+</script>
+</body>
+</html>
