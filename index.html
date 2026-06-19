@@ -3,7 +3,35 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>똑똑 초성 자판기</title>
+<title>똑똑 초성 자판기 🥫</title>
+
+<!-- 파비콘 -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥫</text></svg>">
+<link rel="apple-touch-icon" href="favicon.png">
+
+<!-- OG / 카카오톡 썸네일 -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="똑똑 초성 자판기 🥫">
+<meta property="og:description" content="동전을 넣고 캔을 뽑아 초성 퀴즈를 풀어보세요! 색깔 캔 컬렉션도 모아봐요 🎉">
+<meta property="og:image" content="https://yuriview.github.io/chosung/sns_th.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://yuriview.github.io/chosung/">
+<meta property="og:locale" content="ko_KR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="똑똑 초성 자판기 🥫">
+<meta name="twitter:description" content="동전을 넣고 캔을 뽑아 초성 퀴즈를 풀어보세요!">
+<meta name="twitter:image" content="https://yuriview.github.io/chosung/sns_th.png">
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-V60LCXC8ZE"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-V60LCXC8ZE');
+</script>
+
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
 
@@ -253,6 +281,7 @@
 
   .cat-random-btn {
     border: none; cursor: pointer; width: 100%;
+    grid-column: 1 / -1;
     display: flex; align-items: center; justify-content: center; gap: 8px;
     background: linear-gradient(90deg, #4CAF82, #4A90D9, #9B6FD4, #F06292, #FF8C42, #F5C842);
     border-radius: 30px;
@@ -507,11 +536,11 @@
     <div class="cat-panel">
       <div class="cat-circle-grid" id="cat-grid">
         <!-- 동그라미 버튼들은 JS로 생성 -->
+        <button class="cat-random-btn" id="cat-random-btn" aria-label="아무거나 카테고리 선택">
+          <span class="random-icon">🎰</span>
+          <span>아무거나<span class="random-sub"> — 어떤 캔이 나올까?</span></span>
+        </button>
       </div>
-      <button class="cat-random-btn" id="cat-random-btn" aria-label="아무거나 카테고리 선택">
-        <span class="random-icon">🎰</span>
-        <span>아무거나<span class="random-sub"> — 어떤 캔이 나올까?</span></span>
-      </button>
     </div>
 
     <!-- OUT 슬롯 + 동전 넣기 버튼 -->
@@ -1111,7 +1140,7 @@ function buildCanGrid() {
 function buildCatButtons() {
   const grid = document.getElementById('cat-grid');
   const randomBtn = document.getElementById('cat-random-btn');
-  // 동그라미 버튼만 제거
+  // 아무거나 버튼 제외하고 동그라미 버튼만 제거
   grid.querySelectorAll('.cat-circle-btn').forEach(b=>b.remove());
   CATEGORIES.filter(c=>c.id!==RANDOM_CAT).forEach(cat => {
     const btn = document.createElement('button');
@@ -1129,7 +1158,8 @@ function buildCatButtons() {
     btn.appendChild(circle);
     btn.appendChild(label);
     btn.addEventListener('click', ()=>selectCategory(cat.id));
-    grid.appendChild(btn);
+    // 아무거나 버튼 앞에 삽입
+    grid.insertBefore(btn, randomBtn);
   });
   randomBtn.addEventListener('click', ()=>selectCategory(RANDOM_CAT));
 }
