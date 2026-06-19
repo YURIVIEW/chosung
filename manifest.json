@@ -1,0 +1,26 @@
+{
+  "name": "똑똑 초성 자판기",
+  "short_name": "초성 자판기",
+  "description": "동전을 넣고 캔을 뽑아 초성 퀴즈를 풀어보세요!",
+  "start_url": "/chosung/",
+  "scope": "/chosung/",
+  "display": "standalone",
+  "background_color": "#FFF9F0",
+  "theme_color": "#E53935",
+  "orientation": "portrait",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

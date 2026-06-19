@@ -23,6 +23,14 @@
 <meta name="twitter:description" content="동전을 넣고 캔을 뽑아 초성 퀴즈를 풀어보세요!">
 <meta name="twitter:image" content="https://yuriview.github.io/chosung/sns_th.png">
 
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="초성 자판기">
+<link rel="apple-touch-icon" href="favicon.png">
+
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-V60LCXC8ZE"></script>
 <script>
@@ -1567,7 +1575,6 @@ document.getElementById('coin-tap-layer').style.pointerEvents = 'auto';
 setTimeout(()=>{
   const can = document.getElementById('badge-btn-can');
   if(can){
-    // SVG 강제 렌더링 (첫 깜빡임 방지)
     can.style.opacity = '0.99';
     requestAnimationFrame(()=>{
       can.style.opacity = '1';
@@ -1575,6 +1582,15 @@ setTimeout(()=>{
     });
   }
 }, 1500);
+
+// Service Worker 등록 (PWA 오프라인 지원)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/chosung/sw.js')
+      .then(() => console.log('SW 등록 완료'))
+      .catch(e => console.warn('SW 등록 실패:', e));
+  });
+}
 </script>
 </body>
 </html>
